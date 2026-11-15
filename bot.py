@@ -1,17 +1,22 @@
 
 import os
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from telegram import Update
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    CallbackQueryHandler,
+    MessageHandler,
+    ContextTypes,
+    filters
+)
 
 TOKEN = os.environ["BOT_TOKEN"]
+ADMIN_ID = 7500776824
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [
-            InlineKeyboardButton("💳 Payment", callback_data="payment")
-        ]
+        [InlineKeyboardButton("💳 Payment", callback_data="payment")]
     ]
 
     await update.message.reply_text(
@@ -30,7 +35,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             "💳 Payment Details\n\n"
             "Nagad: 9856000616951329\n\n"
-            "Payment করার পর Screenshot দিন."
+            "Payment করার পর Screenshot পাঠান।"
         )
 
 
@@ -40,9 +45,38 @@ async def myid(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def payment_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+
+    await context.bot.send_message(
+        chat_id=ADMIN_ID,
+        text=(
+            "New Payment Screenshot Received!\n\n"
+            f"Customer Name: {user.full_name}\n"
+            f"Username: @{user.username or 'Not available'}\n"
+            f"Telegram ID: {user.id}"
+        )
+    )
+
+    await context.bot.copy_message(
+        chat_id=ADMIN_ID,
+        from_chat_id=update.effective_chat.id,
+        message_id=update.message.message_id
+    )
+
+    await update.message.reply_text(
+        "আপনার Payment Screenshot পেয়েছি। "
+        "Payment যাচাই করে জানানো হবে।"
+    )
+
+
 app = Application.builder().token(TOKEN).build()
+
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("myid", myid))
 app.add_handler(CallbackQueryHandler(button))
+app.add_handler(
+    MessageHandler(filters.PHOTO | filters.Document.ALL, payment_screenshot)
+)
 
 app.run_polling()
