@@ -15,13 +15,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
     ]
 
-    await update.message.reply_photo(
-    photo="YOUR_IMAGE_URL",
-    caption="Welcome to Our Online Shop!\n\n"
-            "Detective team এ আপনাকে স্বাগতম\n"
-            "আপনার পছন্দের অপশন নির্বাচন করুন।",
+    await update.message.reply_text(
+    "Welcome to Our Online Shop!\n\n"
+    "আমাদের শপে স্বাগতম।\n"
+    "আপনার পছন্দের অপশন নির্বাচন করুন।",
     reply_markup=InlineKeyboardMarkup(keyboard)
     )
+
 
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
