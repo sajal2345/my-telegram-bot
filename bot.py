@@ -10,7 +10,7 @@ TOKEN = os.environ["BOT_TOKEN"]
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [
-            InlineKeyboardButton("💰 Price", callback_data="price"),
+        
             InlineKeyboardButton("💳 Payment", callback_data="payment")
         ]
     ]
