@@ -6,6 +6,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Cont
 
 TOKEN = os.environ["BOT_TOKEN"]
 
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [
@@ -19,22 +20,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
+
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
     if query.data == "price":
         await query.edit_message_text(
-            "💰 Price Details\n\nProduct Price: 50 Tk\n\n"
+            "💰 Price Details\n\n"
+            "Product Price: 50 Tk\n\n"
             "Order করতে Admin-কে Message করুন."
         )
 
     elif query.data == "payment":
         await query.edit_message_text(
-            "💳 Payment Details\n\n
+            "💳 Payment Details\n\n"
             "Nagad: 9856000616951329\n\n"
             "Payment করার পর Screenshot দিন."
         )
+
 
 app = Application.builder().token(TOKEN).build()
 app.add_handler(CommandHandler("start", start))
