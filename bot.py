@@ -39,5 +39,11 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 app = Application.builder().token(TOKEN).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CallbackQueryHandler(button))
+app.add_handler(CommandHandler("myid", myid))
 
 app.run_polling()
+
+async def myid(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        f"Your Telegram ID: {update.effective_user.id}"
+    )
