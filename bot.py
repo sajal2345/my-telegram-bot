@@ -15,9 +15,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
     ]
 
-    await update.message.reply_text(
-        "Welcome to My Shop!\n\nSelect an option:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+    await update.message.reply_photo(
+    photo="YOUR_IMAGE_URL",
+    caption="Welcome to Our Online Shop!\n\n"
+            "Detective team এ আপনাকে স্বাগতম\n"
+            "আপনার পছন্দের অপশন নির্বাচন করুন।",
+    reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
@@ -28,7 +31,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "price":
         await query.edit_message_text(
             "💰 Price Details\n\n"
-            "Product Price: 50 Tk\n\n"
+            "50% অফারে মাত্র: 50 Tk\n\n"
             "Order করতে Admin-কে Message করুন."
         )
 
