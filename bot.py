@@ -28,13 +28,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    if query.data == "price":
-        await query.edit_message_text(
-            "💰 Price Details\n\n"
-            "50% অফারে মাত্র: 50 Tk\n\n"
-            "Order করতে Admin-কে Message করুন."
-        )
-
     elif query.data == "payment":
         await query.edit_message_text(
             "💳 Payment Details\n\n"
