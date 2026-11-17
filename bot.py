@@ -77,13 +77,13 @@ async def get_channel_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     post = update.channel_post
 
     if post:
+        channel_id = post.chat.id
+
+        print(f"CHANNEL POST RECEIVED: {channel_id}")
+
         await context.bot.send_message(
             chat_id=ADMIN_ID,
-            text=(
-                "Channel Detected!\n\n"
-                f"Channel Name: {post.chat.title}\n"
-                f"Channel ID: {post.chat.id}"
-            )
+            text=f"Channel Name: {post.chat.title}\nChannel ID: {channel_id}"
         )
 
 
