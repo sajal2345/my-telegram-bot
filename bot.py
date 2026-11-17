@@ -6,6 +6,7 @@ from telegram.ext import (
     CommandHandler,
     CallbackQueryHandler,
     MessageHandler,
+    ChannelPostHandler,
     ContextTypes,
     filters
 )
@@ -44,11 +45,6 @@ async def myid(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Your Telegram ID: {update.effective_user.id}"
     )
 
-async def channelid(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        f"Channel ID: {update.effective_chat.id}"
-    )
-    
 
 async def payment_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -75,13 +71,30 @@ async def payment_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
 
 
+async def get_channel_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    post = update.channel_post
+
+    if post:
+        await context.bot.send_message(
+            chat_id=ADMIN_ID,
+            text=(
+                "Channel Detected!\n\n"
+                f"Channel Name: {post.chat.title}\n"
+                f"Channel ID: {post.chat.id}"
+            )
+        )
+
+
 app = Application.builder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("myid", myid))
 app.add_handler(CallbackQueryHandler(button))
+
 app.add_handler(
     MessageHandler(filters.PHOTO | filters.Document.ALL, payment_screenshot)
 )
-app.add_handler(CommandHandler("channelid", channelid))
+
+app.add_handler(ChannelPostHandler(get_channel_id))
+
 app.run_polling()
