@@ -71,7 +71,6 @@ async def payment_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE)
         "আপনার Payment Screenshot পেয়েছি। "
         "Payment যাচাই করে জানানো হবে।"
     )
-    
 
 
 async def get_channel_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -95,17 +94,18 @@ app.add_handler(CommandHandler("myid", myid))
 app.add_handler(CallbackQueryHandler(button))
 
 app.add_handler(
-    MessageHandler(filters.PHOTO | filters.Document.ALL, payment_screenshot)
-)
-
-app.add_handler(
-    MessageHandler(filters.UpdateType.CHANNEL_POST, get_channel_id)
-)
-app.add_handler(
     MessageHandler(
         filters.UpdateType.CHANNEL_POST,
         get_channel_id
     ),
     group=-1
 )
+
+app.add_handler(
+    MessageHandler(
+        filters.PHOTO | filters.Document.ALL,
+        payment_screenshot
+    )
+)
+
 app.run_polling()
