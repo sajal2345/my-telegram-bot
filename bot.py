@@ -18,7 +18,7 @@ SECRET_KEY = "MY_SUPER_SECRET_KEY_123"
 
 ADMIN_ID = 7500776824
 CHANNEL_ID = -1004459597302
-NAGAD_NUMBER = "9856000616951329"
+NAGAD_NUMBER = "\n9856000616951329"
 
 conn = sqlite3.connect("payments.db", check_same_thread=False)
 cursor = conn.cursor()
