@@ -101,5 +101,11 @@ app.add_handler(
 app.add_handler(
     MessageHandler(filters.UpdateType.CHANNEL_POST, get_channel_id)
 )
-
+app.add_handler(
+    MessageHandler(
+        filters.UpdateType.CHANNEL_POST,
+        get_channel_id
+    ),
+    group=-1
+)
 app.run_polling()
