@@ -29,7 +29,7 @@ cursor.execute("CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, f
 cursor.execute("CREATE TABLE IF NOT EXISTS subscriptions (user_id INTEGER PRIMARY KEY, expiry_date TEXT, reminded INTEGER DEFAULT 0)")
 cursor.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
 cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('amount', '50.0')")
-cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('days', '30')")
+cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('days', '500')")
 conn.commit()
 
 
@@ -103,16 +103,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn.commit()
 
     amount = int(float(get_setting("amount", "50.0")))
-    days = int(get_setting("days", "30"))
+    days = int(get_setting("days", "500"))
 
     keyboard = [
-        [InlineKeyboardButton(f"💳 Payment ({amount} Tk / {days} Days)", callback_data="payment")],
-        [InlineKeyboardButton("📅 আমার মেয়াদ দেখুন (Status)", callback_data="status")]
+        [InlineKeyboardButton(f"💳 Payment (Tk)", callback_data="payment")],
+        [InlineKeyboardButton("📅 মেয়াদ দেখুন (Status)", callback_data="status")]
     ]
     await update.message.reply_text(
-        "Welcome to Our Online Shop!\n\n"
-        "আমাদের শপে স্বাগতম।\n"
-        "নিচের বাটনে ক্লিক করে পেমেন্ট সম্পন্ন করুন অথবা আপনার সাবস্ক্রিপশনের মেয়াদ দেখুন।",
+        "Welcome to Detective Ai!\n\n"
+        "Call Record গ্রুপ কিনতে নিছে পেমেন্ট অপশন এ ক্লিক করুন। পেমেন্ট করার সাথে সাথে লিংক চলে যাবে,
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -123,14 +122,14 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if query.data == "payment":
         amount = int(float(get_setting("amount", "50.0")))
-        days = int(get_setting("days", "30"))
+        days = int(get_setting("days", "500"))
         await query.edit_message_text(
             "💳 Payment Details\n\n"
             f"📱 Nagad Personal: {NAGAD_NUMBER}\n"
             f"💰 Amount: {amount} Tk (Send Money)\n"
             f"⏳ মেয়াদ: {days} দিন\n\n"
             "📌 নির্দেশনা:\n"
-            f"১. উপরের নম্বরে ঠিক {amount} টাকা Send Money করুন।\n"
+            f"১. উপরের নম্বরে ঠিক {amount} টাকা Send Money করুন।\n\n"
             "২. টাকা পাঠানোর পর আপনার Nagad Transaction ID (TrxID) টি কপি করে এখানে মেসেজ হিসেবে পাঠান (যেমন: 71A2B3C4)।"
         )
     elif query.data == "status":
@@ -139,7 +138,7 @@ async def check_user_status(message, user_id: int):
     cursor.execute("SELECT expiry_date FROM subscriptions WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
     if not row:
-        await message.reply_text("❌ আপনার কোনো সক্রিয় সাবস্ক্রিপশন নেই। পেমেন্ট করতে /start চাপুন।")
+        await message.reply_text("❌ আপনার কোনো গ্সারুপ কিনেন নি তা সাবস্ক্রিপশন নেই। গ্রুপ কিনতে /start চাপুন।")
         return
 
     (expiry_str_raw,) = row
@@ -185,7 +184,7 @@ async def setdays(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
     if not context.args:
-        await update.message.reply_text("ব্যবহার করুন:\n/setdays 30")
+        await update.message.reply_text("ব্যবহার করুন:\n/setdays 500")
         return
     try:
         new_days = int("".join(context.args[:1]))
