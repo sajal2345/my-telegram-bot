@@ -13,7 +13,7 @@ from telegram.ext import (
 )
 
 TOKEN = os.environ["BOT_TOKEN"]
-SECRET_KEY = os.environ.get("SECRET_KEY", "MY_SUPER_SECRET_KEY_123")
+SECRET_KEY = "MY_SUPER_SECRET_KEY_123"
 REQUIRED_AMOUNT = 50.0
 
 ADMIN_ID = 7500776824
