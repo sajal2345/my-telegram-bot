@@ -44,6 +44,11 @@ async def myid(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Your Telegram ID: {update.effective_user.id}"
     )
 
+async def groupid(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        f"Your Group ID: {update.effective_chat.id}"
+    )
+    
 
 async def payment_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
