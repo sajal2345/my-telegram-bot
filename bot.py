@@ -83,5 +83,5 @@ app.add_handler(CallbackQueryHandler(button))
 app.add_handler(
     MessageHandler(filters.PHOTO | filters.Document.ALL, payment_screenshot)
 )
-
+app.add_handler(CommandHandler("groupid", groupid))
 app.run_polling()
