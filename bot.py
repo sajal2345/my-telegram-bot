@@ -111,7 +111,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     await update.message.reply_text(
         "Welcome to Detective Ai!\n\n"
-        "Call Record গ্রুপ কিনতে নিছে পেমেন্ট অপশন এ ক্লিক করুন। পেমেন্ট করার সাথে সাথে লিংক চলে যাবে,
+        "Call Record গ্রুপ কিনতে নিছে পেমেন্ট অপশন এ ক্লিক করুন। পেমেন্ট করার সাথে সাথে লিংক চলে যাবে",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
