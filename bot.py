@@ -44,9 +44,9 @@ async def myid(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Your Telegram ID: {update.effective_user.id}"
     )
 
-async def groupid(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def channelid(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        f"Your Group ID: {update.effective_chat.id}"
+        f"Channel ID: {update.effective_chat.id}"
     )
     
 
@@ -83,5 +83,5 @@ app.add_handler(CallbackQueryHandler(button))
 app.add_handler(
     MessageHandler(filters.PHOTO | filters.Document.ALL, payment_screenshot)
 )
-app.add_handler(CommandHandler("groupid", groupid))
+app.add_handler(CommandHandler("channelid", channelid))
 app.run_polling()
