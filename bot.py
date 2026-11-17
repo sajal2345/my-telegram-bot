@@ -122,25 +122,31 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if query.data == "payment":
         amount = int(float(get_setting("amount", "50.0")))
-        days = int(get_setting("days", "500"))
+        days = int(float(get_setting("days", "500")))
         
-        # নিচের কোটেশনের ভেতরে আপনার ভিডিওর Telegram File ID বা ডাইরেক্ট লিংক বসান
-        PAYMENT_VIDEO = "BAACAgUAAxkBAAEkqapq_HOWZiHB--hb7CTWGW9ibjZQ8AACvh0AAsWp2VfrsrFRXXPEPT0E" 
-        
-        await query.message.reply_video(
-            video=PAYMENT_VIDEO,
-            caption=(
-                "💳 Payment Details\n\n"
-                f"📱 Nagad Personal: {NAGAD_NUMBER}\n"
-                f"💰 Amount: {amount} Tk (Send Money)\n"
-                f"⏳ মেয়াদ: {days} দিন\n\n"
-                "📌 নির্দেশনা:\n"
-                f"১. উপরের নম্বরে ঠিক {amount} টাকা Send Money করুন।\n\n"
-                "২. টাকা পাঠানোর পর আপনার Nagad Transaction ID (TrxID) টি কপি করে এখানে মেসেজ হিসেবে পাঠান (যেমন: 71A2B3C4)।\n"
-            )
+        caption_text = (
+            "💳 Payment Details\n\n"
+            f"📱 Nagad Personal: {NAGAD_NUMBER}\n"
+            f"💰 Amount: {amount} Tk (Send Money)\n"
+            f"⏳ মেয়াদ: {days} দিন\n\n"
+            "📌 নির্দেশনা:\n"
+            f"১. উপরের নম্বরে ঠিক {amount} টাকা Send Money করুন।\n\n"
+            "২. টাকা পাঠানোর পর আপনার Nagad Transaction ID (TrxID) টি কপি করে এখানে মেসেজ হিসেবে পাঠান (যেমন: 71A2B3C4)।"
         )
+
+        try:
+            with open("payment.mp4", "rb") as video_file:
+                await query.message.reply_video(
+                    video=video_file,
+                    caption=caption_text
+                )
+        except Exception as e:
+            await query.message.reply_text(caption_text)
+            await context.bot.send_message(chat_id=ADMIN_ID, text=f"⚠️ Video Error: {e}")
+
     elif query.data == "status":
         await check_user_status(query.message, query.from_user.id)
+
         
 async def check_user_status(message, user_id: int):
     cursor.execute("SELECT expiry_date FROM subscriptions WHERE user_id = ?", (user_id,))
