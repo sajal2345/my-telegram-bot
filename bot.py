@@ -159,7 +159,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if query.data == "payment":
         amount = int(float(get_setting("amount", "50.0")))
-        days = int(get_setting("days", "30")))
+        days = int(get_setting("days", "30"))
         await query.edit_message_text(
             "💳 *Payment Details*\n\n"
             f"📱 Nagad Personal: `{NAGAD_NUMBER}`\n"
