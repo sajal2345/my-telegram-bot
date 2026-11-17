@@ -11,7 +11,9 @@ from telegram.ext import (
 )
 
 TOKEN = os.environ["BOT_TOKEN"]
+
 ADMIN_ID = 7500776824
+CHANNEL_ID = -1004459597302
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -73,17 +75,41 @@ async def payment_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
 
 
-async def get_channel_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    post = update.channel_post
+async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        return
 
-    if post:
-        channel_id = post.chat.id
+    if not context.args:
+        await update.message.reply_text(
+            "ব্যবহার করুন:\n/approve CUSTOMER_ID"
+        )
+        return
 
-        print(f"CHANNEL POST RECEIVED: {channel_id}")
+    try:
+        customer_id = int(context.args[0])
+
+        invite = await context.bot.create_chat_invite_link(
+            chat_id=CHANNEL_ID,
+            member_limit=1
+        )
 
         await context.bot.send_message(
-            chat_id=ADMIN_ID,
-            text=f"Channel Name: {post.chat.title}\nChannel ID: {channel_id}"
+            chat_id=customer_id,
+            text=(
+                "✅ Payment Verified!\n\n"
+                "আপনার Channel Join Link:\n"
+                f"{invite.invite_link}\n\n"
+                "এই Link একজন ব্যবহারকারী একবার ব্যবহার করতে পারবেন।"
+            )
+        )
+
+        await update.message.reply_text(
+            "✅ Customer-কে Invite Link পাঠানো হয়েছে।"
+        )
+
+    except Exception as e:
+        await update.message.reply_text(
+            f"Error: {e}"
         )
 
 
@@ -91,15 +117,8 @@ app = Application.builder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("myid", myid))
+app.add_handler(CommandHandler("approve", approve))
 app.add_handler(CallbackQueryHandler(button))
-
-app.add_handler(
-    MessageHandler(
-        filters.UpdateType.CHANNEL_POST,
-        get_channel_id
-    ),
-    group=-1
-)
 
 app.add_handler(
     MessageHandler(
