@@ -6,7 +6,6 @@ from telegram.ext import (
     CommandHandler,
     CallbackQueryHandler,
     MessageHandler,
-    ChannelPostHandler,
     ContextTypes,
     filters
 )
@@ -95,6 +94,8 @@ app.add_handler(
     MessageHandler(filters.PHOTO | filters.Document.ALL, payment_screenshot)
 )
 
-app.add_handler(ChannelPostHandler(get_channel_id))
+app.add_handler(
+    MessageHandler(filters.UpdateType.CHANNEL_POST, get_channel_id)
+)
 
 app.run_polling()
