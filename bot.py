@@ -48,6 +48,9 @@ async def myid(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def payment_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
 
+    if user is None:
+        return
+
     await context.bot.send_message(
         chat_id=ADMIN_ID,
         text=(
@@ -68,6 +71,7 @@ async def payment_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE)
         "আপনার Payment Screenshot পেয়েছি। "
         "Payment যাচাই করে জানানো হবে।"
     )
+    
 
 
 async def get_channel_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
