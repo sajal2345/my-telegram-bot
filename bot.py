@@ -111,7 +111,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     await update.message.reply_text(
         "🕵️Welcome to Detective Ai!\n\n"
-        "Call Record গ্রুপ কিনতে নিছে পেমেন্ট অপশন এ ক্লিক করুন। পেমেন্ট করার সাথে সাথে লিংক চলে যাবে",
+        "🔰Call Record গ্রুপ কিনতে নিছে পেমেন্ট অপশন এ ক্লিক করুন। পেমেন্ট করার সাথে সাথে লিংক চলে যাবে",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -125,12 +125,12 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         days = int(float(get_setting("days", "500")))
         
         caption_text = (
-            "💳 Payment Details(পেমেন্ট এর আগে উপরের ভিডিওটি অবশ্যই দেখবেন)\n\n"
+            "💳 Payment Details (পেমেন্ট এর আগে উপরের ভিডিওটি অবশ্যই দেখবেন)\n\n"
             f"📱 Nagad Personal: {NAGAD_NUMBER}\n"
-            f"💰 Amount: {amount} Tk (Send Money)\n"
+            f"💰 দাম: {amount} Tk (Send Money)\n"
             f"⏳ মেয়াদ: {days} দিন\n\n"
             "📌 নির্দেশনা:\n"
-            f"১. টাকা পাঠানোর পর আপনার Nagad Transaction ID (TrxID) টি কপি করে মেসেজ করুন (যেমন: 71A2B3C4)।\n"
+            f"১. টাকা পাঠানোর পর আপনার Transaction ID (TrxID) টি কপি করে মেসেজ করুন (যেমন: 71A2B3C4)।\n"
         )
 
         try:
