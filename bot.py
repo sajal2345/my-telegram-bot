@@ -133,7 +133,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
-    # ২. নগদ বাটনে ক্লিক করলে আপনার গতকালকের আপডেট করা পোস্ট ও ভিডিও যাবে
+    # ২. নগদ বাটনে ক্লিক করলে আপনার আপডেট করা পোস্ট ও ভিডিও যাবে
     elif query.data == "pay_nagad":
         amount = int(float(get_setting("amount", "50.0")))
         days = int(float(get_setting("days", "500")))
@@ -148,34 +148,45 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         try:
-            with open("payment.mp4", "rb") as video_file:
+            with open("Nagad_payment.mp4", "rb") as video_file:
                 await query.message.reply_video(
                     video=video_file,
                     caption=caption_text
                 )
         except Exception as e:
             await query.message.reply_text(caption_text)
-            await context.bot.send_message(chat_id=ADMIN_ID, text=f"⚠️ Video Error: {e}")
+            await context.bot.send_message(chat_id=ADMIN_ID, text=f"⚠️ Nagad Video Error: {e}")
 
-    # ৩. বিকাশ বাটনে ক্লিক করলে বিকাশের তথ্য যাবে
+    # ৩. বিকাশ বাটনে ক্লিক করলে বিকাশের ভিডিও ও তথ্য যাবে
     elif query.data == "pay_bkash":
         amount = int(float(get_setting("amount", "50.0")))
         days = int(float(get_setting("days", "500")))
         
         bkash_text = (
-            "💳 bKash Payment Details\n
-            (⚠️ আমাদের নিজস্ব বিকাশ একাউন্ট নেই। তাই উপরের ভিডিওটি দেখে আপনার বিকাশ একাউন্ট থেকে আমাদের নগদ একাউন্টে সেন্ড মানি করুন)\n\n"
+            "💳 bKash Payment Details\n"
+            "(⚠️ আমাদের নিজস্ব বিকাশ একাউন্ট নেই। তাই উপরের ভিডিওটি দেখে আপনার বিকাশ একাউন্ট থেকে আমাদের নগদ একাউন্টে সেন্ড মানি করুন)\n\n"
             f"📱 Nagad Personal: {BKASH_NUMBER}\n"
             f"💰 দাম: {amount} Tk (Send Money)\n"
             f"⏳ মেয়াদ: {days} দিন\n\n"
             "📌 নির্দেশনা:\n"
             f"১. টাকা পাঠানোর পর আপনার Transaction ID (TrxID) টি কপি করে মেসেজ করুন (যেমন:9H7G6F5D)।\n"
         )
-        await query.message.reply_text(bkash_text)
+
+        try:
+            # বিকাশ থেকে নগদে পাঠানোর টিউটোরিয়াল ভিডিওর নাম bkash.mp4 দিয়ে GitHub-এ আপলোড করুন
+            with open("Bkash_payment.mp4", "rb") as video_file:
+                await query.message.reply_video(
+                    video=video_file,
+                    caption=bkash_text
+                )
+        except Exception as e:
+            await query.message.reply_text(bkash_text)
+            await context.bot.send_message(chat_id=ADMIN_ID, text=f"⚠️ bKash Video Error: {e}")
 
     # ৪. মেয়াদ দেখার বাটন
     elif query.data == "status":
         await check_user_status(query.message, query.from_user.id)
+
 
         
 async def check_user_status(message, user_id: int):
