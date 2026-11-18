@@ -114,11 +114,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🔰Call Record গ্রুপ কিনতে নিছে পেমেন্ট অপশন এ ক্লিক করুন। পেমেন্ট করার সাথে সাথে লিংক চলে যাবে",
         reply_markup=InlineKeyboardMarkup(keyboard)
         )
-    async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
     if query.data == "payment":
+        
         keyboard = [
             [
                 InlineKeyboardButton("🪪 বিকাশ (bKash)", callback_data="pay_bkash"),
