@@ -180,10 +180,11 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data == "status":
         await check_user_status(query.message, query.from_user.id)
-        async def check_user_status(message, user_id: int):
+async def check_user_status(message, user_id: int):
     cursor.execute("SELECT expiry_date FROM subscriptions WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
     if not row:
+        
         await message.reply_text("❌ আপনি কোনো গ্রপ কিনেন নি তাই সাবস্ক্রিপশন নেই। গ্রুপ কিনতে /start চাপুন।")
         return
 
