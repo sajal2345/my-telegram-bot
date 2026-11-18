@@ -154,7 +154,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data == "pay_bkash":
         amount = int(float(get_setting("amount", "50.0")))
-        days = int(get_setting("days", "500")))
+        days = int(get_setting("days", "500"))
         
         bkash_text = (
             "💳 bKash Payment Details\n"
