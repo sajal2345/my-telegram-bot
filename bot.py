@@ -45,8 +45,8 @@ def get_setting(key: str, default: str) -> str:
 def set_setting(key: str, value: str):
     cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
     conn.commit()
-    async def send_invite_to_customer(bot, customer_id: int, trx_id: str, paid_amount: float = 0.0):
-    try:
+async def send_invite_to_customer(bot, customer_id: int, trx_id: str, paid_amount: float = 0.0):
+        try:
         days = int(get_setting("days", "30"))
         now = datetime.now()
 
