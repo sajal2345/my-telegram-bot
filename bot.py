@@ -132,7 +132,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data == "pay_nagad":
         amount = int(float(get_setting("amount", "50.0")))
-        days = int(get_setting("days", "500")))
+        days = int(get_setting("days", "500"))
         
         caption_text = (
             "💳 Payment Details\n(🌟পেমেন্ট এর আগে উপরের ভিডিওটি অবশ্যই দেখবেন)\n\n"
