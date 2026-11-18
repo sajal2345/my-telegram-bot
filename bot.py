@@ -139,7 +139,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         days = int(float(get_setting("days", "500")))
         
         caption_text = (
-            "💳 Payment Details\n(🌟পেমেন্ট এর আগে উপরের ভিডিওটি অবশ্যই দেখবেন)"\n\n"
+            "💳 Payment Details\n(🌟পেমেন্ট এর আগে উপরের ভিডিওটি অবশ্যই দেখবেন)\n\n"
             f"📱 Nagad Personal: {NAGAD_NUMBER}\n"
             f"💰 দাম: {amount} Tk (Send Money)\n"
             f"⏳ মেয়াদ: {days} দিন\n\n"
