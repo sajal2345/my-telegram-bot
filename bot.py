@@ -45,7 +45,7 @@ def get_setting(key: str, default: str) -> str:
 def set_setting(key: str, value: str):
     cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
     conn.commit()
-async def send_invite_to_customer(bot, customer_id: int, trx_id: str, paid_amount: float = 0.0):
+    async def send_invite_to_customer(bot, customer_id: int, trx_id: str, paid_amount: float = 0.0):
     try:
         days = int(get_setting("days", "30"))
         now = datetime.now()
@@ -113,14 +113,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🕵️Welcome to Detective Ai!\n\n"
         "🔰Call Record গ্রুপ কিনতে নিছে পেমেন্ট অপশন এ ক্লিক করুন। পেমেন্ট করার সাথে সাথে লিংক চলে যাবে",
         reply_markup=InlineKeyboardMarkup(keyboard)
-    )
-
-
-async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        )
+    async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    # ১. মেইন Payment বাটনে ক্লিক করলে বিকাশ ও নগদ বাটন দেখাবে
     if query.data == "payment":
         keyboard = [
             [
@@ -133,10 +130,9 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
-    # ২. নগদ বাটনে ক্লিক করলে আপনার আপডেট করা পোস্ট ও ভিডিও যাবে
     elif query.data == "pay_nagad":
         amount = int(float(get_setting("amount", "50.0")))
-        days = int(float(get_setting("days", "500")))
+        days = int(get_setting("days", "500")))
         
         caption_text = (
             "💳 Payment Details\n(🌟পেমেন্ট এর আগে উপরের ভিডিওটি অবশ্যই দেখবেন)\n\n"
@@ -157,7 +153,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.reply_text(caption_text)
             await context.bot.send_message(chat_id=ADMIN_ID, text=f"⚠️ Nagad Video Error: {e}")
 
-    # ৩. বিকাশ বাটনে ক্লিক করলে বিকাশের ভিডিও ও তথ্য যাবে
     elif query.data == "pay_bkash":
         amount = int(float(get_setting("amount", "50.0")))
         days = int(float(get_setting("days", "500")))
@@ -173,7 +168,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         try:
-            # বিকাশ থেকে নগদে পাঠানোর টিউটোরিয়াল ভিডিওর নাম bkash.mp4 দিয়ে GitHub-এ আপলোড করুন
             with open("Bkash_payment.mp4", "rb") as video_file:
                 await query.message.reply_video(
                     video=video_file,
@@ -183,13 +177,9 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.reply_text(bkash_text)
             await context.bot.send_message(chat_id=ADMIN_ID, text=f"⚠️ bKash Video Error: {e}")
 
-    # ৪. মেয়াদ দেখার বাটন
     elif query.data == "status":
         await check_user_status(query.message, query.from_user.id)
-
-
-        
-async def check_user_status(message, user_id: int):
+        async def check_user_status(message, user_id: int):
     cursor.execute("SELECT expiry_date FROM subscriptions WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
     if not row:
@@ -298,7 +288,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🛒 মোট সফল পেমেন্ট: {total_sales} টি\n"
         f"💰 মোট আয়: {int(total_income)} Tk"
     )
-async def handle_trx_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def handle_trx_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if user is None or not update.message or not update.message.text:
         return
@@ -354,6 +344,12 @@ async def payment_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
     await context.bot.copy_message(chat_id=ADMIN_ID, from_chat_id=update.effective_chat.id, message_id=update.message.message_id)
     await update.message.reply_text("আপনার Payment Screenshot পেয়েছি। TrxID টেক্সট হিসেবে পাঠালে দ্রুত অটো-ভেরিফাই হবে।")
+
+
+async def get_video_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id == ADMIN_ID and update.message.video:
+        file_id = update.message.video.file_id
+        await update.message.reply_text(f"Video File ID:\n\n`{file_id}`", parse_mode="Markdown")
 
 
 async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -470,6 +466,7 @@ async def main():
     ptb_app.add_handler(CommandHandler("stats", stats))
     ptb_app.add_handler(CallbackQueryHandler(button))
     ptb_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_trx_id))
+    ptb_app.add_handler(MessageHandler(filters.VIDEO, get_video_id))
     ptb_app.add_handler(MessageHandler(filters.PHOTO | filters.Document.ALL, payment_screenshot))
 
     web_app = web.Application()
@@ -495,3 +492,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+    
