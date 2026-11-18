@@ -119,7 +119,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     if query.data == "payment":
-        
         keyboard = [
             [
                 InlineKeyboardButton("🪪 বিকাশ (bKash)", callback_data="pay_bkash"),
@@ -145,18 +144,17 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         try:
-            with open("Nagad_payment.mp4", "rb") as video_file:
-                await query.message.reply_video(
-                    video=video_file,
-                    caption=caption_text
-                )
+            await query.message.reply_video(
+                video="BAACAgUAAxkBAAIBpmr9jeQYdMyAWRC_demevFaqCsLEAAIEKgACwTHxV5Nqev6BuXZNPQQ",
+                caption=caption_text
+            )
         except Exception as e:
             await query.message.reply_text(caption_text)
             await context.bot.send_message(chat_id=ADMIN_ID, text=f"⚠️ Nagad Video Error: {e}")
 
     elif query.data == "pay_bkash":
         amount = int(float(get_setting("amount", "50.0")))
-        days = int(float(get_setting("days", "500")))
+        days = int(get_setting("days", "500")))
         
         bkash_text = (
             "💳 bKash Payment Details\n"
@@ -169,17 +167,17 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         try:
-            with open("Bkash_payment.mp4", "rb") as video_file:
-                await query.message.reply_video(
-                    video=video_file,
-                    caption=bkash_text
-                )
+            await query.message.reply_video(
+                video="BAACAgUAAxkBAAIBrWr9kzpL0zPNbtDNhZVHZd4jeFDlAAINKgACwTHxVzN1OjuVRxvtPQQ",
+                caption=bkash_text
+            )
         except Exception as e:
             await query.message.reply_text(bkash_text)
             await context.bot.send_message(chat_id=ADMIN_ID, text=f"⚠️ bKash Video Error: {e}")
 
     elif query.data == "status":
         await check_user_status(query.message, query.from_user.id)
+
 async def check_user_status(message, user_id: int):
     cursor.execute("SELECT expiry_date FROM subscriptions WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
