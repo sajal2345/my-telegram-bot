@@ -290,7 +290,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🛒 মোট সফল পেমেন্ট: {total_sales} টি\n"
         f"💰 মোট আয়: {int(total_income)} Tk"
     )
-    async def handle_trx_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_trx_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if user is None or not update.message or not update.message.text:
         return
