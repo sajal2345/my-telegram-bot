@@ -194,7 +194,6 @@ def build_product_keyboard(selected_keys: list) -> InlineKeyboardMarkup:
         ])
 
     keyboard.append([
-        InlineKeyboardButton("🎁 Refer & Earn", callback_data="refer_menu"),
         InlineKeyboardButton("🆘 Help / Admin", callback_data="support_chat")
     ])
 
@@ -436,6 +435,28 @@ async def check_user_status(message, user_id: int):
 async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await check_user_status(update.message, update.effective_user.id)
 
+async def refer_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    cursor.execute("SELECT ref_points FROM users WHERE user_id = ?", (user_id,))
+    row = cursor.fetchone()
+    pts = row[0] if row else 0
+    ref_link = f"https://t.me_{user_id}"
+
+    keyboard = []
+    if pts >= POINTS_FOR_FREE:
+        keyboard.append([InlineKeyboardButton("🎉 Claim 1 Free Group!", callback_data="claim_free_menu")])
+    keyboard.append([InlineKeyboardButton("🔙 Back to Products", callback_data="back_to_products")])
+
+    await update.message.reply_text(
+        f"🎁 <b>Refer & Earn Program</b>\n\n"
+        f"আপনার রেফারেল লিংকটি বন্ধুদের সাথে শেয়ার করুন। আপনার লিংক থেকে কেউ জয়েন করে পেমেন্ট করলেই আপনি পাবেন <b>১ পয়েন্ট</b>।\n\n"
+        f"🌟 মোট <b>{POINTS_FOR_FREE} পয়েন্ট</b> হলেই যেকোনো ১টি গ্রুপ পাবেন <b>সম্পূর্ণ ফ্রি!</b>\n\n"
+        f"📊 আপনার বর্তমান পয়েন্ট: <b>{pts} / {POINTS_FOR_FREE}</b>\n\n"
+        f"🔗 আপনার রেফারেল লিংক:\n<code>{ref_link}</code>",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="HTML"
+    )
+    
 
 async def myid(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"Your Telegram ID: {update.effective_user.id}")
@@ -819,6 +840,7 @@ async def main():
 
     ptb_app.add_handler(CommandHandler("start", start))
     ptb_app.add_handler(CommandHandler("status", status_cmd))
+    ptb_app.add_handler(CommandHandler("refer", refer_cmd))
     ptb_app.add_handler(CommandHandler("myid", myid))
     ptb_app.add_handler(CommandHandler("approve", approve))
     ptb_app.add_handler(CommandHandler("setamount1", setamount1))
@@ -847,6 +869,13 @@ async def main():
 
     await ptb_app.initialize()
     await ptb_app.start()
+    await ptb_app.bot.set_my_commands([
+        ("start", "বট চালু করুন"),
+        ("refer", "রেফার করে ফ্রি গ্রুপ জিতুন"),
+        ("status", "আপনার সাবস্ক্রিপশনের মেয়াদ দেখুন"),
+        ("myid", "আপনার টেলিগ্রাম আইডি দেখুন")
+    ])
+
     await ptb_app.updater.start_polling()
 
     asyncio.create_task(subscription_checker(ptb_app.bot))
