@@ -197,7 +197,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await query.edit_message_text(
             "🕵️ <b>Welcome to Detective Ai!</b>\n\n"
-            "🔰 নিচের প্রোডাক্টগুলোতে ক্লিক করে সিলেক্ট (✅) করুন (একাধিক প্রোডাক্ট একসাথে নিতে পারবেন), তারপর <b>Checkout</b> বাটনে ক্লিক করুন:",
+            "🔰 নিচের Grope থেকে আপনার পছন্দের group-টি সিলেক্ট করুন। তারপর <b>🔰পেমেন্ট করুন🔰</b> বাটনে ক্লিক করুন:",
             reply_markup=build_product_keyboard(selected_keys),
             parse_mode="HTML"
         )
@@ -209,7 +209,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         selected_keys, total_amount = get_cart_total(current_cart)
 
         if not selected_keys:
-            await query.message.reply_text("⚠️ দয়া করে আগে অন্তত ১টি প্রোডাক্ট সিলেক্ট করুন!")
+            await query.message.reply_text("⚠️ দয়া করে আগে অন্তত ১টি Group সিলেক্ট করুন!")
             return
 
         names = "\n".join([f"• <b>{PRODUCTS[k]['name']}</b>" for k in selected_keys])
@@ -223,7 +223,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
         ]
         await query.edit_message_text(
-            f"🛒 <b>আপনার সিলেক্ট করা প্যাকেজসমূহ:</b>\n{names}\n\n"
+            f"🛒 <b>আপনার সিলেক্ট করা group সমূহ:</b>\n\n{names}\n\n"
             f"💰 <b>সর্বমোট মূল্য: {int(total_amount)} Tk</b>\n\n"
             "💳 পেমেন্ট মাধ্যম সিলেক্ট করুন:",
             reply_markup=InlineKeyboardMarkup(keyboard),
@@ -246,23 +246,23 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if query.data == "pay_nagad":
             video_id = "BAACAgUAAxkBAAIBpmr9jeQYdMyAWRC_demevFaqCsLEAAIEKgACwTHxV5Nqev6BuXZNPQQ"
             caption_text = (
-                f"💳 <b>Nagad Payment Details</b>\n📦 প্যাকেজ: <b>{names}</b>\n"
-                "(🌟পেমেন্ট এর আগে উপরের ভিডিওটি অবশ্যই দেখবেন)\n\n"
-                f"📱 Nagad Personal: <code>{NAGAD_NUMBER.strip()}</code>\n"
+                f"💳 <b>Nagad Payment Details:</b>\n (🌟পেমেন্ট এর আগে উপরের ভিডিওটি অবশ্যই দেখবেন)\n\n"
+                "📦 প্যাকেজ: <b>{names}</b>\n\n"
+                f"📱 Nagad Personal: <code>{NAGAD_NUMBER.strip()}</code>\n\n"
                 f"💰 মোট দাম: <b>{int(total_amount)} Tk</b> (Send Money)\n"
                 f"⏳ মেয়াদ: <b>{days} দিন</b>\n\n"
-                "📌 নির্দেশনা:\n"
-                "১. টাকা পাঠানোর পর আপনার Transaction ID (TrxID) টি কপি করে মেসেজ করুন (যেমন: <code>71A2B3C4</code>)।"
+                "📌 <b>নির্দেশনা:</b>\n"
+                "১. টাকা পাঠানোর পর আপনার Transaction ID (TrxID) টি কপি করে মেসেজ করুন (যেমন:<code>71A2B3C4</code>)।"
             )
         else:
             video_id = "BAACAgUAAxkBAAIBrWr9kzpL0zPNbtDNhZVHZd4jeFDlAAINKgACwTHxVzN1OjuVRxvtPQQ"
             caption_text = (
-                f"💳 <b>bKash Payment Details</b>\n📦 প্যাকেজ: <b>{names}</b>\n"
-                "(⚠️ আমাদের নিজস্ব বিকাশ একাউন্ট নেই। তাই উপরের ভিডিওটি দেখে আপনার বিকাশ একাউন্ট থেকে আমাদের নগদ একাউন্টে সেন্ড মানি করুন)\n\n"
+                f"💳 <b>BKash Payment Details:</b>\n(⚠️ আমাদের নিজস্ব বিকাশ একাউন্ট নেই। তাই উপরের ভিডিওটি দেখে আপনার বিকাশ একাউন্ট থেকে আমাদের নগদ একাউন্টে সেন্ড মানি করুন)\n\n"
+                "📦 প্যাকেজ: <b>{names}</b>\n\n"
                 f"📱 Nagad Personal: <code>{NAGAD_NUMBER.strip()}</code>\n"
                 f"💰 মোট দাম: <b>{int(total_amount)} Tk</b> (Send Money)\n"
                 f"⏳ মেয়াদ: <b>{days} দিন</b>\n\n"
-                "📌 নির্দেশনা:\n"
+                "📌 <b>নির্দেশনা:</b>\n"
                 "১. টাকা পাঠানোর পর আপনার Transaction ID (TrxID) টি কপি করে মেসেজ করুন (যেমন: <code>9H7G6F5D</code>)।"
             )
 
