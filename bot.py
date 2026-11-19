@@ -79,7 +79,8 @@ def get_cart_total(cart_str: str):
     unique_keys = list(dict.fromkeys(keys))
     total = sum(get_product_price(k) for k in unique_keys)
     return unique_keys, total
-    async def send_invite_to_customer(bot, customer_id: int, trx_id: str, paid_amount: float = 0.0, cart_str: str = "p1"):
+
+async def send_invite_to_customer(bot, customer_id: int, trx_id: str, paid_amount: float = 0.0, cart_str: str = "p1"):
     try:
         keys, _ = get_cart_total(cart_str)
         if not keys:
