@@ -240,7 +240,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         row = cursor.fetchone()
         pts = row[0] if row else 0
         bot_username = context.bot.username
-        ref_link = f"https://t.me_{user_id}"
+        ref_link = f"https://t.me/{bot_username}?start=ref_{user_id}"
 
 
         keyboard = []
@@ -473,7 +473,8 @@ async def refer_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cursor.execute("SELECT ref_points FROM users WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
     pts = row[0] if row else 0
-    ref_link = f"https://t.me_{user_id}"
+    ref_link = f"https://t.me/{bot_username}?start=ref_{user_id}"
+
 
     keyboard = []
     if pts >= POINTS_FOR_FREE:
