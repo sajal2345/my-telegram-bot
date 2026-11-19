@@ -18,12 +18,13 @@ SECRET_KEY = "MY_SUPER_SECRET_KEY_123"
 
 ADMIN_ID = 5653843581
 NAGAD_NUMBER = "\n\n9856000616951329\n"
+POINTS_FOR_FREE = 2  # ২ পয়েন্ট হলে ১টি গ্রুপ ফ্রি পাবে
 
 PRODUCTS = {
-    "p1": {"name": "BD Live/Call Record(নভেম্বর ২০২৬)", "channel_id": -1004459597302, "auto_link": True},
-    "p2": {"name": "Tango Videos", "channel_id": -1002829173374, "auto_link": True},
-    "p3": {"name": "Chamet Videos", "channel_id": -1002609377697, "auto_link": True},
-    "p4": {"name": " ভিডিও", "channel_id": None, "auto_link": False},
+    "p1": {"name": "Package 1", "channel_id": -1004459597302, "auto_link": True},
+    "p2": {"name": "Package 2", "channel_id": -1002829173374, "auto_link": True},
+    "p3": {"name": "Package 3", "channel_id": -1002609377697, "auto_link": True},
+    "p4": {"name": "Package 4", "channel_id": None, "auto_link": False},
 }
 
 conn = sqlite3.connect("payments.db", check_same_thread=False)
@@ -31,7 +32,7 @@ cursor = conn.cursor()
 
 cursor.execute("CREATE TABLE IF NOT EXISTS sms_logs (trx_id TEXT PRIMARY KEY, amount REAL, used INTEGER DEFAULT 0)")
 cursor.execute("CREATE TABLE IF NOT EXISTS pending_users (trx_id TEXT PRIMARY KEY, user_id INTEGER, product_key TEXT DEFAULT 'p1')")
-cursor.execute("CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, full_name TEXT, selected_product TEXT DEFAULT '')")
+cursor.execute("CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, full_name TEXT, username TEXT DEFAULT '', joined_date TEXT DEFAULT '', selected_product TEXT DEFAULT '', referred_by INTEGER DEFAULT 0, ref_points INTEGER DEFAULT 0, ref_rewarded INTEGER DEFAULT 0, support_mode INTEGER DEFAULT 0)")
 cursor.execute("CREATE TABLE IF NOT EXISTS subscriptions (user_id INTEGER PRIMARY KEY, expiry_date TEXT, reminded INTEGER DEFAULT 0, channel_id INTEGER)")
 cursor.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
 
@@ -42,7 +43,13 @@ conn.commit()
 
 for col_sql in [
     "ALTER TABLE pending_users ADD COLUMN product_key TEXT DEFAULT 'p1'",
+    "ALTER TABLE users ADD COLUMN username TEXT DEFAULT ''",
+    "ALTER TABLE users ADD COLUMN joined_date TEXT DEFAULT ''",
     "ALTER TABLE users ADD COLUMN selected_product TEXT DEFAULT ''",
+    "ALTER TABLE users ADD COLUMN referred_by INTEGER DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN ref_points INTEGER DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN ref_rewarded INTEGER DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN support_mode INTEGER DEFAULT 0",
     "ALTER TABLE subscriptions ADD COLUMN channel_id INTEGER"
 ]:
     try:
@@ -55,10 +62,7 @@ conn.commit()
 def get_setting(key: str, default: str) -> str:
     cursor.execute("SELECT value FROM settings WHERE key = ?", (key,))
     row = cursor.fetchone()
-    if row:
-        (val,) = row
-        return str(val)
-    return default
+    return str(row[0]) if row else default
 
 
 def set_setting(key: str, value: str):
@@ -79,14 +83,13 @@ def get_cart_total(cart_str: str):
     unique_keys = list(dict.fromkeys(keys))
     total = sum(get_product_price(k) for k in unique_keys)
     return unique_keys, total
-
 async def send_invite_to_customer(bot, customer_id: int, trx_id: str, paid_amount: float = 0.0, cart_str: str = "p1"):
     try:
         keys, _ = get_cart_total(cart_str)
         if not keys:
             keys = ["p1"]
 
-        days = int(get_setting("days", "30"))
+        days = int(get_setting("days", "500"))
         now = datetime.now()
         new_expiry = now + timedelta(days=days)
         expiry_str = new_expiry.strftime("%d-%m-%Y %I:%M %p")
@@ -112,7 +115,7 @@ async def send_invite_to_customer(bot, customer_id: int, trx_id: str, paid_amoun
                 has_p4 = True
 
         msg = (
-            f"✅ Payment Verified! (TrxID: {trx_id})\n"
+            f"✅ Verified! (ID: {trx_id})\n"
             f"📦 প্যাকেজসমূহ: {', '.join(bought_names)}\n"
             f"📅 মেয়াদ: {days} দিন (শেষ হবে: {expiry_str})\n\n"
         )
@@ -123,25 +126,51 @@ async def send_invite_to_customer(bot, customer_id: int, trx_id: str, paid_amoun
 
         await bot.send_message(chat_id=customer_id, text=msg)
 
+        # কাস্টমারের নাম ও ইউজারনেম সংগ্রহ
+        cursor.execute("SELECT full_name, username FROM users WHERE user_id = ?", (customer_id,))
+        u_info = cursor.fetchone()
+        cust_name = u_info[0] if u_info and u_info[0] else "Unknown"
+        cust_user = f"@{u_info[1]}" if u_info and u_info[1] else "No Username"
+
+        # রেফারেল বোনাস চেক
+        if paid_amount > 0:
+            cursor.execute("SELECT referred_by, ref_rewarded FROM users WHERE user_id = ?", (customer_id,))
+            ref_row = cursor.fetchone()
+            if ref_row:
+                referrer_id, already_rewarded = ref_row
+                if referrer_id and referrer_id != 0 and already_rewarded == 0:
+                    cursor.execute("UPDATE users SET ref_points = ref_points + 1 WHERE user_id = ?", (referrer_id,))
+                    cursor.execute("UPDATE users SET ref_rewarded = 1 WHERE user_id = ?", (customer_id,))
+                    conn.commit()
+                    cursor.execute("SELECT ref_points FROM users WHERE user_id = ?", (referrer_id,))
+                    pts = cursor.fetchone()[0]
+                    try:
+                        await bot.send_message(
+                            chat_id=referrer_id,
+                            text=f"🎉 অভিনন্দন! আপনার রেফার করা একজন বন্ধু পেমেন্ট সম্পন্ন করেছেন!\n🌟 আপনি ১টি রেফারেল পয়েন্ট পেয়েছেন। বর্তমান পয়েন্ট: {pts}/{POINTS_FOR_FREE}"
+                        )
+                    except Exception:
+                        pass
+
         admin_msg = (
-            f"🎉 নতুন পেমেন্ট ভেরিফাই হয়েছে!\n"
-            f"👤 Customer ID: {customer_id}\n"
+            f"🎉 নতুন পেমেন্ট ভেরিফাই হয়েছে!\n\n"
+            f"👤 Name: {cust_name}\n"
+            f"🔗 Username: {cust_user}\n"
+            f"🆔 Customer ID: <code>{customer_id}</code>\n"
             f"📦 প্যাকেজ: {', '.join(bought_names)}\n"
-            f"🧾 TrxID: {trx_id}\n"
+            f"🧾 TrxID: <code>{trx_id}</code>\n"
             f"💰 Amount: {paid_amount} Tk"
         )
         if has_p4:
-            admin_msg += f"\n\n🔔 লিংক পাঠান:\n/sendlink {customer_id} https://your-link"
+            admin_msg += f"\n\n🔔 লিংক পাঠান:\n<code>/sendlink {customer_id} https://your-link</code>"
 
-        await bot.send_message(chat_id=ADMIN_ID, text=admin_msg)
+        await bot.send_message(chat_id=ADMIN_ID, text=admin_msg, parse_mode="HTML")
 
     except Exception as e:
         await bot.send_message(
             chat_id=ADMIN_ID,
             text=f"⚠️ Invite Link পাঠাতে সমস্যা হয়েছে (User: {customer_id}, TrxID: {trx_id}): {e}"
         )
-
-
 def build_product_keyboard(selected_keys: list) -> InlineKeyboardMarkup:
     p1_price = int(get_product_price("p1"))
     group_price = int(get_product_price("p2"))
@@ -163,6 +192,11 @@ def build_product_keyboard(selected_keys: list) -> InlineKeyboardMarkup:
         keyboard.append([
             InlineKeyboardButton(f"🔰 পেমেন্ট করুন total({total_price} Tk) 🔰", callback_data="checkout")
         ])
+
+    keyboard.append([
+        InlineKeyboardButton("🎁 Refer & Earn", callback_data="refer_menu"),
+        InlineKeyboardButton("🆘 Help / Admin", callback_data="support_chat")
+    ])
 
     return InlineKeyboardMarkup(keyboard)
 
@@ -186,10 +220,10 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         new_cart_str = ",".join(selected_keys)
         cursor.execute("UPDATE users SET selected_product = ? WHERE user_id = ?", (new_cart_str, user_id))
         conn.commit()
-
         await query.edit_message_reply_markup(reply_markup=build_product_keyboard(selected_keys))
 
     elif query.data == "back_to_products":
+        cursor.execute("UPDATE users SET support_mode = 0 WHERE user_id = ?", (user_id,))
         cursor.execute("SELECT selected_product FROM users WHERE user_id = ?", (user_id,))
         row = cursor.fetchone()
         (current_cart,) = row if row else ("",)
@@ -199,6 +233,72 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🕵️ <b>Welcome to Detective Ai!</b>\n\n"
             "🔰 আপনার পছন্দের গ্রুপটি ক্লিক করে নির্বাচন করুন। এরপর 🔰পেমেন্ট করুন🔰 বাটনে ক্লিক করুন:",
             reply_markup=build_product_keyboard(selected_keys),
+            parse_mode="HTML"
+        )
+
+    elif query.data == "refer_menu":
+        cursor.execute("SELECT ref_points FROM users WHERE user_id = ?", (user_id,))
+        row = cursor.fetchone()
+        pts = row[0] if row else 0
+        bot_username = context.bot.username
+        ref_link = f"https://t.me{bot_username}?start=ref_{user_id}"
+
+        keyboard = []
+        if pts >= POINTS_FOR_FREE:
+            keyboard.append([InlineKeyboardButton("🎉 Claim 1 Free Group!", callback_data="claim_free_menu")])
+        keyboard.append([InlineKeyboardButton("🔙 Back to Products", callback_data="back_to_products")])
+
+        await query.edit_message_text(
+            f"🎁 <b>Refer & Earn Program</b>\n\n"
+            f"আপনার রেফারেল লিংকটি বন্ধুদের সাথে শেয়ার করুন। আপনার লিংক থেকে কেউ জয়েন করে পেমেন্ট করলেই আপনি পাবেন <b>১ পয়েন্ট</b>।\n\n"
+            f"🌟 মোট <b>{POINTS_FOR_FREE} পয়েন্ট</b> হলেই যেকোনো ১টি গ্রুপ পাবেন <b>সম্পূর্ণ ফ্রি!</b>\n\n"
+            f"📊 আপনার বর্তমান পয়েন্ট: <b>{pts} / {POINTS_FOR_FREE}</b>\n\n"
+            f"🔗 আপনার রেফারেল লিংক:\n<code>{ref_link}</code>",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+
+    elif query.data == "claim_free_menu":
+        cursor.execute("SELECT ref_points FROM users WHERE user_id = ?", (user_id,))
+        row = cursor.fetchone()
+        pts = row[0] if row else 0
+        if pts < POINTS_FOR_FREE:
+            await query.message.reply_text(f"⚠️ ফ্রি গ্রুপ নিতে কমপক্ষে {POINTS_FOR_FREE} পয়েন্ট লাগবে!")
+            return
+
+        keyboard = [
+            [InlineKeyboardButton(f"🎁 {PRODUCTS[k]['name']}", callback_data=f"redeem_{k}")]
+            for k in ["p1", "p2", "p3", "p4"]
+        ]
+        keyboard.append([InlineKeyboardButton("🔙 Back", callback_data="refer_menu")])
+        await query.edit_message_text(
+            "🎉 <b>অভিনন্দন!</b> আপনি কোন গ্রুপটি ফ্রিতে নিতে চান তা সিলেক্ট করুন:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+
+    elif query.data.startswith("redeem_"):
+        prod_key = query.data.replace("redeem_", "")
+        cursor.execute("SELECT ref_points FROM users WHERE user_id = ?", (user_id,))
+        row = cursor.fetchone()
+        pts = row[0] if row else 0
+        if pts < POINTS_FOR_FREE:
+            await query.message.reply_text("⚠️ পর্যাপ্ত পয়েন্ট নেই!")
+            return
+
+        cursor.execute("UPDATE users SET ref_points = ref_points - ? WHERE user_id = ?", (POINTS_FOR_FREE, user_id))
+        conn.commit()
+        await query.edit_message_text("⏳ আপনার ফ্রি গ্রুপের লিংক তৈরি হচ্ছে...")
+        await send_invite_to_customer(context.bot, user_id, "FREE_REFERRAL", 0.0, prod_key)
+
+    elif query.data == "support_chat":
+        cursor.execute("UPDATE users SET support_mode = 1 WHERE user_id = ?", (user_id,))
+        conn.commit()
+        keyboard = [[InlineKeyboardButton("❌ Cancel / Back", callback_data="back_to_products")]]
+        await query.edit_message_text(
+            "🆘 <b>Admin Live Support</b>\n\n"
+            "আপনার সমস্যা বা প্রশ্নটি নিচে লিখে মেসেজ পাঠান (চাইলে স্ক্রিনশটও দিতে পারেন)। অ্যাডমিন শীঘ্রই উত্তর দেবেন।",
+            reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
 
@@ -278,8 +378,29 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if user:
-        cursor.execute("INSERT OR IGNORE INTO users (user_id, full_name, selected_product) VALUES (?, ?, '')", (user.id, user.full_name))
-        cursor.execute("UPDATE users SET full_name = ?, selected_product = '' WHERE user_id = ?", (user.full_name, user.id))
+        cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user.id,))
+        exists = cursor.fetchone()
+
+        ref_id = 0
+        if not exists and context.args and context.args[0].startswith("ref_"):
+            try:
+                possible_ref = int(context.args[0].replace("ref_", ""))
+                if possible_ref != user.id:
+                    ref_id = possible_ref
+            except ValueError:
+                ref_id = 0
+
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        uname = user.username or ""
+
+        cursor.execute(
+            "INSERT OR IGNORE INTO users (user_id, full_name, username, joined_date, selected_product, referred_by) VALUES (?, ?, ?, ?, '', ?)",
+            (user.id, user.full_name, uname, today_str, ref_id)
+        )
+        cursor.execute(
+            "UPDATE users SET full_name = ?, username = ?, selected_product = '', support_mode = 0 WHERE user_id = ?",
+            (user.full_name, uname, user.id)
+        )
         conn.commit()
 
     await update.message.reply_text(
@@ -418,35 +539,110 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
+    today_str = datetime.now().strftime("%Y-%m-%d")
+
     cursor.execute("SELECT COUNT(*) FROM users")
     (total_users,) = cursor.fetchone()
+
+    cursor.execute("SELECT COUNT(*) FROM users WHERE joined_date = ?", (today_str,))
+    (today_users,) = cursor.fetchone()
+
+    cursor.execute("SELECT COUNT(*) FROM users WHERE referred_by > 0")
+    (total_referrals,) = cursor.fetchone()
+
     cursor.execute("SELECT COUNT(*), COALESCE(SUM(amount), 0) FROM sms_logs WHERE used = 1")
     total_sales, total_income = cursor.fetchone()
+
+    cursor.execute("SELECT COUNT(*) FROM pending_users")
+    (pending_orders,) = cursor.fetchone()
+
     cursor.execute("SELECT COUNT(*) FROM subscriptions WHERE expiry_date > ?", (datetime.now().isoformat(),))
     (active_subs,) = cursor.fetchone()
 
+    p1_amt = int(get_product_price("p1"))
+    grp_amt = int(get_product_price("p2"))
+    cur_days = get_setting("days", "500")
+
     await update.message.reply_text(
-        "📊 বটের বর্তমান হিসাব (Stats)\n\n"
-        f"👥 মোট ব্যবহারকারী: {total_users} জন\n"
-        f"✅ সক্রিয় সাবস্ক্রাইবার: {active_subs} জন\n"
-        f"🛒 মোট সফল পেমেন্ট: {total_sales} টি\n"
-        f"💰 মোট আয়: {int(total_income)} Tk"
+        "📊 <b>অ্যাডমিন প্যানেল ও বটের রিপোর্ট</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        f"👥 <b>মোট বট স্টার্ট করেছে:</b> {total_users} জন\n"
+        f"🆕 <b>আজকে নতুন স্টার্ট করেছে:</b> {today_users} জন\n"
+        f"🤝 <b>রেফারেল থেকে এসেছে:</b> {total_referrals} জন\n"
+        f"✅ <b>সক্রিয় সাবস্ক্রাইবার:</b> {active_subs} জন\n"
+        f"⏳ <b>পেন্ডিং পেমেন্ট (TrxID):</b> {pending_orders} টি\n"
+        f"🛒 <b>মোট সফল পেমেন্ট:</b> {total_sales} টি\n"
+        f"💰 <b>মোট আয়:</b> {int(total_income)} Tk\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        f"⚙️ <b>বর্তমান সেটিংস:</b>\n"
+        f"• Package 1 দাম: {p1_amt} Tk | বাকিগুলো: {grp_amt} Tk\n"
+        f"• সাবস্ক্রিপশন মেয়াদ: {cur_days} দিন\n\n"
+        "🛠 <b>অ্যাডমিন কমান্ডসমূহ:</b>\n"
+        "• <code>/setamount1 50</code> (Package 1 দাম)\n"
+        "• <code>/setamount2 50</code> (বাকিগুলোর দাম)\n"
+        "• <code>/setdays 500</code> (মেয়াদ পরিবর্তন)\n"
+        "• <code>/broadcast মেসেজ</code> (সবাইকে নোটিশ)\n"
+        "• <code>/approve user_id p1</code> (ম্যানুয়াল অ্যাপ্রুভ)",
+        parse_mode="HTML"
     )
 
 
-async def handle_trx_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if user is None or not update.message or not update.message.text:
         return
 
-    cursor.execute("INSERT OR IGNORE INTO users (user_id, full_name) VALUES (?, ?)", (user.id, user.full_name))
+    # ১. অ্যাডমিন যদি কোনো সাপোর্ট মেসেজে Reply করেন
+    if user.id == ADMIN_ID and update.message.reply_to_message:
+        replied_text = update.message.reply_to_message.text or update.message.reply_to_message.caption or ""
+        if "SupportID:" in replied_text:
+            try:
+                target_uid = int(replied_text.split("SupportID:")[1].split()[0].strip())
+                await context.bot.send_message(
+                    chat_id=target_uid,
+                    text=f"👨‍💻 <b>Admin Reply:</b>\n\n{update.message.text}",
+                    parse_mode="HTML"
+                )
+                await update.message.reply_text("✅ ইউজারকে উত্তর পাঠানো হয়েছে!")
+                return
+            except Exception as e:
+                await update.message.reply_text(f"❌ রিপ্লাই পাঠানো যায়নি: {e}")
+                return
+
+    uname = user.username or ""
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    cursor.execute(
+        "INSERT OR IGNORE INTO users (user_id, full_name, username, joined_date) VALUES (?, ?, ?, ?)",
+        (user.id, user.full_name, uname, today_str)
+    )
+    cursor.execute("UPDATE users SET full_name = ?, username = ? WHERE user_id = ?", (user.full_name, uname, user.id))
     conn.commit()
 
-    cursor.execute("SELECT selected_product FROM users WHERE user_id = ?", (user.id,))
+    # ২. ইউজার যদি Live Support মোডে থাকেন
+    cursor.execute("SELECT support_mode, selected_product FROM users WHERE user_id = ?", (user.id,))
     u_row = cursor.fetchone()
-    (cart_str,) = u_row if u_row else ("",)
-    selected_keys, required_amount = get_cart_total(cart_str)
+    support_mode, cart_str = u_row if u_row else (0, "")
 
+    if support_mode == 1:
+        u_tag = f"@{uname}" if uname else "No Username"
+        await context.bot.send_message(
+            chat_id=ADMIN_ID,
+            text=(
+                f"🆘 <b>New Support Message!</b>\n"
+                f"👤 Name: {user.full_name} ({u_tag})\n"
+                f"🆔 SupportID: {user.id}\n\n"
+                f"💬 Message:\n{update.message.text}\n\n"
+                f"<i>(উত্তর দিতে এই মেসেজটিতে Reply করুন)</i>"
+            ),
+            parse_mode="HTML"
+        )
+        cursor.execute("UPDATE users SET support_mode = 0 WHERE user_id = ?", (user.id,))
+        conn.commit()
+        await update.message.reply_text("✅ আপনার মেসেজটি অ্যাডমিনের কাছে পাঠানো হয়েছে। শীঘ্রই উত্তর পাবেন!")
+        return
+
+    # ৩. সাধারণ TrxID ভেরিফিকেশন
+    selected_keys, required_amount = get_cart_total(cart_str)
     if not selected_keys:
         await update.message.reply_text("⚠️ আপনি কোনো প্রোডাক্ট সিলেক্ট করেননি। আগে /start দিয়ে প্রোডাক্ট সিলেক্ট করুন।")
         return
@@ -483,7 +679,7 @@ async def handle_trx_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             f"⏳ আপনার TrxID ({trx_id}) জমা হয়েছে।\n"
             "Nagad থেকে কনফার্মেশন SMS পাওয়ার সাথে সাথেই ভেরিফাই হয়ে যাবে!"
-        )
+    )
 
 async def payment_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -493,14 +689,17 @@ async def payment_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await context.bot.send_message(
         chat_id=ADMIN_ID,
         text=(
-            "New Payment Screenshot Received!\n\n"
+            f"📩 New Screenshot / Support Media!\n\n"
             f"Customer Name: {user.full_name}\n"
             f"Username: @{user.username or 'Not available'}\n"
-            f"Telegram ID: {user.id}"
+            f"SupportID: {user.id}\n"
+            f"(রিপ্লাই দিতে এই মেসেজটিতে Reply করুন)"
         )
     )
     await context.bot.copy_message(chat_id=ADMIN_ID, from_chat_id=update.effective_chat.id, message_id=update.message.message_id)
-    await update.message.reply_text("আপনার Payment Screenshot পেয়েছি। TrxID টেক্সট হিসেবে পাঠালে দ্রুত অটো-ভেরিফাই হবে।")
+    cursor.execute("UPDATE users SET support_mode = 0 WHERE user_id = ?", (user.id,))
+    conn.commit()
+    await update.message.reply_text("✅ আপনার ছবি/ফাইলটি অ্যাডমিনের কাছে পাঠানো হয়েছে।")
 
 
 async def get_video_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -628,8 +827,9 @@ async def main():
     ptb_app.add_handler(CommandHandler("setdays", setdays))
     ptb_app.add_handler(CommandHandler("broadcast", broadcast))
     ptb_app.add_handler(CommandHandler("stats", stats))
+    ptb_app.add_handler(CommandHandler("admin", stats))
     ptb_app.add_handler(CallbackQueryHandler(button))
-    ptb_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_trx_id))
+    ptb_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
     ptb_app.add_handler(MessageHandler(filters.VIDEO, get_video_id))
     ptb_app.add_handler(MessageHandler(filters.PHOTO | filters.Document.ALL, payment_screenshot))
 
@@ -656,3 +856,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+    
