@@ -165,7 +165,6 @@ def build_product_keyboard(selected_keys: list) -> InlineKeyboardMarkup:
 
     return InlineKeyboardMarkup(keyboard)
 
-
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -189,7 +188,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await query.edit_message_reply_markup(reply_markup=build_product_keyboard(selected_keys))
 
-   elif query.data == "back_to_products":
+    elif query.data == "back_to_products":
         cursor.execute("SELECT selected_product FROM users WHERE user_id = ?", (user_id,))
         row = cursor.fetchone()
         (current_cart,) = row if row else ("",)
@@ -201,7 +200,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=build_product_keyboard(selected_keys),
             parse_mode="HTML"
         )
-    
+
     elif query.data == "checkout":
         cursor.execute("SELECT selected_product FROM users WHERE user_id = ?", (user_id,))
         row = cursor.fetchone()
@@ -229,6 +228,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
+
 
     elif query.data in ["pay_nagad", "pay_bkash"]:
         cursor.execute("SELECT selected_product FROM users WHERE user_id = ?", (user_id,))
