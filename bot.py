@@ -160,7 +160,7 @@ def build_product_keyboard(selected_keys: list) -> InlineKeyboardMarkup:
     total_price = sum(prices[k] for k in selected_keys)
     if selected_keys:
         keyboard.append([
-            InlineKeyboardButton(f"💳 Checkout & Pay ({total_price} Tk) ➡️", callback_data="checkout")
+            InlineKeyboardButton(f"🔰 পেমেন্ট করুন total({total_price} Tk) 🔰", callback_data="checkout")
         ])
 
     return InlineKeyboardMarkup(keyboard)
