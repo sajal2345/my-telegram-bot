@@ -19,20 +19,19 @@ SECRET_KEY = "MY_SUPER_SECRET_KEY_123"
 ADMIN_ID = 5653843581
 NAGAD_NUMBER = "\n\n9856000616951329\n"
 
-# প্রোডাক্টের তালিকা ও চ্যানেল আইডি (এখানে আপনার আসল নাম ও চ্যানেল আইডি বসান)
 PRODUCTS = {
     "p1": {"name": "Premium Call/Live Record 2026(november)", "channel_id": -1004459597302, "auto_link": True},
     "p2": {"name": "Tango Videos", "channel_id": -1002829173374, "auto_link": True},
     "p3": {"name": "Chamet Videos", "channel_id": -1002609377697, "auto_link": True},
     "p4": {"name": "baccader", "channel_id": None, "auto_link": False},
-} 
+}
 
 conn = sqlite3.connect("payments.db", check_same_thread=False)
 cursor = conn.cursor()
 
 cursor.execute("CREATE TABLE IF NOT EXISTS sms_logs (trx_id TEXT PRIMARY KEY, amount REAL, used INTEGER DEFAULT 0)")
 cursor.execute("CREATE TABLE IF NOT EXISTS pending_users (trx_id TEXT PRIMARY KEY, user_id INTEGER, product_key TEXT DEFAULT 'p1')")
-cursor.execute("CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, full_name TEXT, selected_product TEXT DEFAULT 'p1')")
+cursor.execute("CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, full_name TEXT, selected_product TEXT DEFAULT '')")
 cursor.execute("CREATE TABLE IF NOT EXISTS subscriptions (user_id INTEGER PRIMARY KEY, expiry_date TEXT, reminded INTEGER DEFAULT 0, channel_id INTEGER)")
 cursor.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
 
@@ -41,18 +40,15 @@ cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('amount_grou
 cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('days', '500')")
 conn.commit()
 
-try:
-    cursor.execute("ALTER TABLE pending_users ADD COLUMN product_key TEXT DEFAULT 'p1'")
-except sqlite3.OperationalError:
-    pass
-try:
-    cursor.execute("ALTER TABLE users ADD COLUMN selected_product TEXT DEFAULT 'p1'")
-except sqlite3.OperationalError:
-    pass
-try:
-    cursor.execute("ALTER TABLE subscriptions ADD COLUMN channel_id INTEGER")
-except sqlite3.OperationalError:
-    pass
+for col_sql in [
+    "ALTER TABLE pending_users ADD COLUMN product_key TEXT DEFAULT 'p1'",
+    "ALTER TABLE users ADD COLUMN selected_product TEXT DEFAULT ''",
+    "ALTER TABLE subscriptions ADD COLUMN channel_id INTEGER"
+]:
+    try:
+        cursor.execute(col_sql)
+    except sqlite3.OperationalError:
+        pass
 conn.commit()
 
 
@@ -61,7 +57,7 @@ def get_setting(key: str, default: str) -> str:
     row = cursor.fetchone()
     if row:
         (val,) = row
-        return val
+        return str(val)
     return default
 
 
@@ -75,16 +71,15 @@ def get_product_price(prod_key: str) -> float:
         return float(get_setting("amount_p1", "50.0"))
     return float(get_setting("amount_group", "100.0"))
 
-def get_cart_total(cart_str: str) -> tuple[list[str], float]:
-    if not cart_str:
+
+def get_cart_total(cart_str: str):
+    if not cart_str or not isinstance(cart_str, str):
         return [], 0.0
-    keys = [k for k in cart_str.split(",") if k in PRODUCTS]
-    # ডুপ্লিকেট বাদ দিয়ে অর্ডার ঠিক রাখা
+    keys = [k.strip() for k in cart_str.split(",") if k.strip() in PRODUCTS]
     unique_keys = list(dict.fromkeys(keys))
     total = sum(get_product_price(k) for k in unique_keys)
     return unique_keys, total
-
-async def send_invite_to_customer(bot, customer_id: int, trx_id: str, paid_amount: float = 0.0, cart_str: str = "p1"):
+    async def send_invite_to_customer(bot, customer_id: int, trx_id: str, paid_amount: float = 0.0, cart_str: str = "p1"):
     try:
         keys, _ = get_cart_total(cart_str)
         if not keys:
@@ -111,38 +106,33 @@ async def send_invite_to_customer(bot, customer_id: int, trx_id: str, paid_amoun
                 )
                 conn.commit()
                 invite = await bot.create_chat_invite_link(chat_id=target_ch, member_limit=1)
-                auto_links_text.append(f"🔗 **{product['name']}**:\n{invite.invite_link}")
+                auto_links_text.append(f"🔗 {product['name']}:\n{invite.invite_link}")
             else:
                 has_p4 = True
 
-        # কাস্টমারকে মেসেজ পাঠানো
         msg = (
-            f"✅ **Payment Verified!** (TrxID: `{trx_id}`)\n"
+            f"✅ Payment Verified! (TrxID: {trx_id})\n"
             f"📦 প্যাকেজসমূহ: {', '.join(bought_names)}\n"
             f"📅 মেয়াদ: {days} দিন (শেষ হবে: {expiry_str})\n\n"
         )
         if auto_links_text:
             msg += "\n\n".join(auto_links_text) + "\n\n⚠️ প্রতিটি লিংক শুধুমাত্র একবার ব্যবহারযোগ্য।"
         if has_p4:
-            msg += f"\n\n⏳ **{PRODUCTS['p4']['name']}**-এর লিংক অ্যাডমিন শীঘ্রই আপনাকে ইনবক্সে পাঠিয়ে দেবেন।"
+            msg += f"\n\n⏳ {PRODUCTS['p4']['name']}-এর লিংক অ্যাডমিন শীঘ্রই আপনাকে ইনবক্সে পাঠিয়ে দেবেন।"
 
-        await bot.send_message(chat_id=customer_id, text=msg, parse_mode="Markdown")
+        await bot.send_message(chat_id=customer_id, text=msg)
 
-        # অ্যাডমিনকে রিপোর্ট পাঠানো
         admin_msg = (
-            f"🎉 **নতুন পেমেন্ট ভেরিফাই হয়েছে!**\n"
-            f"👤 Customer ID: `{customer_id}`\n"
+            f"🎉 নতুন পেমেন্ট ভেরিফাই হয়েছে!\n"
+            f"👤 Customer ID: {customer_id}\n"
             f"📦 প্যাকেজ: {', '.join(bought_names)}\n"
-            f"🧾 TrxID: `{trx_id}`\n"
+            f"🧾 TrxID: {trx_id}\n"
             f"💰 Amount: {paid_amount} Tk"
         )
         if has_p4:
-            admin_msg += (
-                f"\n\n🔔 **Product 4-এর লিংক পাঠান:**\n"
-                f"`/sendlink {customer_id} https://your-link-here`"
-            )
+            admin_msg += f"\n\n🔔 লিংক পাঠান:\n/sendlink {customer_id} https://your-link"
 
-        await bot.send_message(chat_id=ADMIN_ID, text=admin_msg, parse_mode="Markdown")
+        await bot.send_message(chat_id=ADMIN_ID, text=admin_msg)
 
     except Exception as e:
         await bot.send_message(
@@ -151,7 +141,7 @@ async def send_invite_to_customer(bot, customer_id: int, trx_id: str, paid_amoun
         )
 
 
-def build_product_keyboard(selected_keys: list[str]) -> InlineKeyboardMarkup:
+def build_product_keyboard(selected_keys: list) -> InlineKeyboardMarkup:
     p1_price = int(get_product_price("p1"))
     group_price = int(get_product_price("p2"))
 
@@ -175,9 +165,7 @@ def build_product_keyboard(selected_keys: list[str]) -> InlineKeyboardMarkup:
 
     keyboard.append([InlineKeyboardButton("📅 মেয়াদ দেখুন (Status)", callback_data="status")])
     return InlineKeyboardMarkup(keyboard)
-
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if user:
         cursor.execute("INSERT OR IGNORE INTO users (user_id, full_name, selected_product) VALUES (?, ?, '')", (user.id, user.full_name))
@@ -185,10 +173,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn.commit()
 
     await update.message.reply_text(
-        "🕵️ **Welcome to Detective Ai!**\n\n"
-        "🔰 নিচের প্রোডাক্টগুলোতে ক্লিক করে সিলেক্ট (✅) করুন (একাধিক প্রোডাক্ট একসাথে নিতে পারবেন), তারপর **Checkout** বাটনে ক্লিক করুন:",
-        reply_markup=build_product_keyboard([]),
-        parse_mode="Markdown"
+        "🕵️ Welcome to Detective Ai!\n\n"
+        "🔰 নিচের প্রোডাক্টগুলোতে ক্লিক করে সিলেক্ট (✅) করুন (একাধিক প্রোডাক্ট একসাথে নিতে পারবেন), তারপর Checkout বাটনে ক্লিক করুন:",
+        reply_markup=build_product_keyboard([])
     )
 
 
@@ -197,12 +184,11 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     user_id = query.from_user.id
 
-    # প্রোডাক্ট সিলেক্ট / আনসিলেক্ট (Add to Cart)
     if query.data.startswith("toggle_"):
         prod_key = query.data.replace("toggle_", "")
         cursor.execute("SELECT selected_product FROM users WHERE user_id = ?", (user_id,))
         row = cursor.fetchone()
-        current_cart = row if (row and row) else ""
+        (current_cart,) = row if row else ("",)
         selected_keys, _ = get_cart_total(current_cart)
 
         if prod_key in selected_keys:
@@ -216,11 +202,10 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await query.edit_message_reply_markup(reply_markup=build_product_keyboard(selected_keys))
 
-    # Checkout বাটনে ক্লিক করলে পেমেন্ট অপশন আসবে
     elif query.data == "checkout":
         cursor.execute("SELECT selected_product FROM users WHERE user_id = ?", (user_id,))
         row = cursor.fetchone()
-        current_cart = row if (row and row) else ""
+        (current_cart,) = row if row else ("",)
         selected_keys, total_amount = get_cart_total(current_cart)
 
         if not selected_keys:
@@ -235,17 +220,16 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
         ]
         await query.message.reply_text(
-            f"🛒 **আপনার সিলেক্ট করা প্যাকেজসমূহ:**\n{names}\n\n"
-            f"💰 **সর্বমোট মূল্য: {int(total_amount)} Tk**\n\n"
+            f"🛒 আপনার সিলেক্ট করা প্যাকেজসমূহ:\n{names}\n\n"
+            f"💰 সর্বমোট মূল্য: {int(total_amount)} Tk\n\n"
             "💳 পেমেন্ট মাধ্যম সিলেক্ট করুন:",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown"
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
     elif query.data in ["pay_nagad", "pay_bkash"]:
         cursor.execute("SELECT selected_product FROM users WHERE user_id = ?", (user_id,))
         row = cursor.fetchone()
-        current_cart = row if (row and row) else ""
+        (current_cart,) = row if row else ("",)
         selected_keys, total_amount = get_cart_total(current_cart)
 
         if not selected_keys:
@@ -288,108 +272,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await check_user_status(query.message, user_id)
 
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    if user:
-        cursor.execute("INSERT OR IGNORE INTO users (user_id, full_name) VALUES (?, ?)", (user.id, user.full_name))
-        cursor.execute("UPDATE users SET full_name = ? WHERE user_id = ?", (user.full_name, user.id))
-        conn.commit()
-
-    p1_price = int(get_product_price("p1"))
-    group_price = int(get_product_price("p2"))
-
-    keyboard = [
-        [InlineKeyboardButton(f"1️⃣ {PRODUCTS['p1']['name']} - {p1_price} Tk", callback_data="select_p1")],
-        [InlineKeyboardButton(f"2️⃣ {PRODUCTS['p2']['name']} - {group_price} Tk", callback_data="select_p2")],
-        [InlineKeyboardButton(f"3️⃣ {PRODUCTS['p3']['name']} - {group_price} Tk", callback_data="select_p3")],
-        [InlineKeyboardButton(f"4️⃣ {PRODUCTS['p4']['name']} - {group_price} Tk", callback_data="select_p4")],
-        [InlineKeyboardButton("📅 মেয়াদ দেখুন (Status)", callback_data="status")]
-    ]
-    await update.message.reply_text(
-        "🕵️ Welcome to Detective Ai!\n\n"
-        "🔰 নিচের তালিকা থেকে আপনার পছন্দের প্রোডাক্টটি সিলেক্ট করুন:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
-
-
-async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
-
-    if query.data.startswith("select_"):
-        prod_key = query.data.split("_")
-        cursor.execute("UPDATE users SET selected_product = ? WHERE user_id = ?", (prod_key, user_id))
-        conn.commit()
-
-        product = PRODUCTS[prod_key]
-        amount = int(get_product_price(prod_key))
-
-        keyboard = [
-            [
-                InlineKeyboardButton("🪪 বিকাশ (bKash)", callback_data=f"pay_bkash_{prod_key}"),
-                InlineKeyboardButton("🪪 নগদ (Nagad)", callback_data=f"pay_nagad_{prod_key}")
-            ]
-        ]
-        await query.message.reply_text(
-            f"📦 সিলেক্টেড প্যাকেজ: **{product['name']}**\n"
-            f"💰 পরিশোধযোগ্য মূল্য: **{amount} Tk**\n\n"
-            "💳 আপনি কোন মাধ্যমে পেমেন্ট করতে চান তা সিলেক্ট করুন:",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown"
-        )
-
-    elif query.data.startswith("pay_nagad_"):
-        prod_key = query.data.split("_")
-        amount = int(get_product_price(prod_key))
-        days = int(get_setting("days", "500"))
-        product = PRODUCTS[prod_key]
-
-        caption_text = (
-            f"💳 Payment Details ({product['name']})\n(🌟পেমেন্ট এর আগে উপরের ভিডিওটি অবশ্যই দেখবেন)\n\n"
-            f"📱 Nagad Personal: {NAGAD_NUMBER}\n"
-            f"💰 দাম: {amount} Tk (Send Money)\n"
-            f"⏳ মেয়াদ: {days} দিন\n\n"
-            "📌 নির্দেশনা:\n"
-            "১. টাকা পাঠানোর পর আপনার Transaction ID (TrxID) টি কপি করে মেসেজ করুন (যেমন: 71A2B3C4)।\n"
-        )
-
-        try:
-            await query.message.reply_video(
-                video="BAACAgUAAxkBAAIBpmr9jeQYdMyAWRC_demevFaqCsLEAAIEKgACwTHxV5Nqev6BuXZNPQQ",
-                caption=caption_text
-            )
-        except Exception as e:
-            await query.message.reply_text(caption_text)
-            await context.bot.send_message(chat_id=ADMIN_ID, text=f"⚠️ Nagad Video Error: {e}")
-
-    elif query.data.startswith("pay_bkash_"):
-        prod_key = query.data.split("_")
-        amount = int(get_product_price(prod_key))
-        days = int(get_setting("days", "500"))
-        product = PRODUCTS[prod_key]
-
-        bkash_text = (
-            f"💳 bKash Payment Details ({product['name']})\n"
-            "(⚠️ আমাদের নিজস্ব বিকাশ একাউন্ট নেই। তাই উপরের ভিডিওটি দেখে আপনার বিকাশ একাউন্ট থেকে আমাদের নগদ একাউন্টে সেন্ড মানি করুন)\n\n"
-            f"📱 Nagad Personal: {NAGAD_NUMBER}\n"
-            f"💰 দাম: {amount} Tk (Send Money)\n"
-            f"⏳ মেয়াদ: {days} দিন\n\n"
-            "📌 নির্দেশনা:\n"
-            "১. টাকা পাঠানোর পর আপনার Transaction ID (TrxID) টি কপি করে মেসেজ করুন (যেমন: 9H7G6F5D)।\n"
-        )
-
-        try:
-            await query.message.reply_video(
-                video="BAACAgUAAxkBAAIBrWr9kzpL0zPNbtDNhZVHZd4jeFDlAAINKgACwTHxVzN1OjuVRxvtPQQ",
-                caption=bkash_text
-            )
-        except Exception as e:
-            await query.message.reply_text(bkash_text)
-            await context.bot.send_message(chat_id=ADMIN_ID, text=f"⚠️ bKash Video Error: {e}")
-
-    elif query.data == "status":
-        await check_user_status(query.message, user_id)
 async def check_user_status(message, user_id: int):
     cursor.execute("SELECT expiry_date FROM subscriptions WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
@@ -447,7 +329,7 @@ async def setamount2(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if new_amt <= 0:
             raise ValueError
         set_setting("amount_group", str(new_amt))
-        await update.message.reply_text(f"✅ Product 2, 3 এবং 4-এর দাম একসাথে {int(new_amt)} Tk সেট করা হয়েছে!")
+        await update.message.reply_text(f"✅ বাকি ৩টি প্রোডাক্টের দাম একসাথে {int(new_amt)} Tk সেট করা হয়েছে!")
     except ValueError:
         await update.message.reply_text("❌ সঠিক সংখ্যা লিখুন। যেমন: /setamount2 100")
 
@@ -459,125 +341,15 @@ async def sendlink(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("ব্যবহার করুন:\n/sendlink <user_id> <link>")
         return
     try:
-        target_user_id = int(context.args)
+        target_user_id = int("".join(context.args[:1]))
         link_text = " ".join(context.args[1:])
         await context.bot.send_message(
             chat_id=target_user_id,
-            text=f"🎉 অ্যাডমিন আপনার **{PRODUCTS['p4']['name']}**-এর লিংক পাঠিয়েছেন:\n\n🔗 {link_text}",
-            parse_mode="Markdown"
+            text=f"🎉 অ্যাডমিন আপনার {PRODUCTS['p4']['name']}-এর লিংক পাঠিয়েছেন:\n\n🔗 {link_text}"
         )
-        await update.message.reply_text(f"✅ ইউজার (`{target_user_id}`)-কে লিংক পাঠানো হয়েছে!", parse_mode="Markdown")
+        await update.message.reply_text(f"✅ ইউজার ({target_user_id})-কে লিংক পাঠানো হয়েছে!")
     except Exception as e:
         await update.message.reply_text(f"❌ এরর: {e}")
-
-
-async def handle_trx_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    if user is None or not update.message or not update.message.text:
-        return
-
-    cursor.execute("INSERT OR IGNORE INTO users (user_id, full_name) VALUES (?, ?)", (user.id, user.full_name))
-    conn.commit()
-
-    cursor.execute("SELECT selected_product FROM users WHERE user_id = ?", (user.id,))
-    u_row = cursor.fetchone()
-    cart_str = u_row if (u_row and u_row) else "p1"
-    selected_keys, required_amount = get_cart_total(cart_str)
-
-    if not selected_keys:
-        await update.message.reply_text("⚠️ আপনি কোনো প্রোডাক্ট সিলেক্ট করেননি। আগে /start দিয়ে প্রোডাক্ট সিলেক্ট করুন।")
-        return
-
-    text = update.message.text.strip().upper()
-    if " " in text or len(text) < 6 or len(text) > 15 or not text.isalnum():
-        await update.message.reply_text("❌ সঠিক Transaction ID (TrxID) পাঠান। উদাহরণ: 71A2B3C4")
-        return
-
-    trx_id = text
-    cursor.execute("SELECT amount, used FROM sms_logs WHERE trx_id = ?", (trx_id,))
-    row = cursor.fetchone()
-
-    if row:
-        amount, used = row
-        if used == 1:
-            await update.message.reply_text("⚠️ এই Transaction ID টি ইতিমধ্যে ব্যবহার করা হয়েছে!")
-            return
-        if amount < required_amount:
-            await update.message.reply_text(
-                f"❌ কম টাকা পাঠানো হয়েছে ({int(amount)} Tk)। আপনার সিলেক্ট করা প্যাকেজগুলোর জন্য মোট {int(required_amount)} Tk পাঠান।"
-            )
-            return
-
-        cursor.execute("UPDATE sms_logs SET used = 1 WHERE trx_id = ?", (trx_id,))
-        conn.commit()
-        await send_invite_to_customer(context.bot, user.id, trx_id, amount, cart_str)
-    else:
-        cursor.execute(
-            "INSERT OR REPLACE INTO pending_users (trx_id, user_id, product_key) VALUES (?, ?, ?)",
-            (trx_id, user.id, cart_str)
-        )
-        conn.commit()
-        await update.message.reply_text(
-            f"⏳ আপনার TrxID ({trx_id}) জমা হয়েছে।\n"
-            "Nagad থেকে কনফার্মেশন SMS পাওয়ার সাথে সাথেই ভেরিফাই হয়ে যাবে!"
-        )
-
-
-async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id == ADMIN_ID and context.args:
-        target_id = int(context.args)
-        cart_str = context.args if len(context.args) > 1 else "p1"
-        _, total_amt = get_cart_total(cart_str)
-        await send_invite_to_customer(context.bot, target_id, "MANUAL_ADMIN", total_amt, cart_str)
-
-
-async def verify_sms_endpoint(request):
-    if request.method == "GET":
-        secret_key = request.query.get("secret_key", "")
-        trx_id = request.query.get("trx_id", "").strip().upper()
-        amount_str = request.query.get("amount", "0")
-    else:
-        try:
-            data = await request.json()
-            secret_key = data.get("secret_key", "")
-            trx_id = str(data.get("trx_id", "")).strip().upper()
-            amount_str = str(data.get("amount", "0"))
-        except Exception:
-            return web.json_response({"status": "invalid json"}, status=400)
-
-    if secret_key != SECRET_KEY:
-        return web.json_response({"status": "unauthorized"}, status=403)
-
-    try:
-        amount = float(amount_str)
-    except ValueError:
-        amount = 0.0
-
-    if not trx_id or amount <= 0:
-        return web.json_response({"status": "bad data"}, status=400)
-
-    cursor.execute("SELECT used FROM sms_logs WHERE trx_id = ?", (trx_id,))
-    existing = cursor.fetchone()
-    if not existing:
-        cursor.execute("INSERT INTO sms_logs (trx_id, amount, used) VALUES (?, ?, 0)", (trx_id, amount))
-        conn.commit()
-
-    cursor.execute("SELECT user_id, product_key FROM pending_users WHERE trx_id = ?", (trx_id,))
-    pending = cursor.fetchone()
-
-    if pending:
-        customer_id, cart_str = pending
-        _, required_amount = get_cart_total(cart_str)
-
-        if amount >= required_amount:
-            cursor.execute("UPDATE sms_logs SET used = 1 WHERE trx_id = ?", (trx_id,))
-            cursor.execute("DELETE FROM pending_users WHERE trx_id = ?", (trx_id,))
-            conn.commit()
-
-            ptb_app = request.app["ptb_app"]
-            await send_invite_to_customer(ptb_app.bot, customer_id, trx_id, amount, cart_str)
-
-    return web.json_response({"status": "ok", "trx_id": trx_id})
 
 
 async def setdays(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -594,7 +366,6 @@ async def setdays(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"✅ সাবস্ক্রিপশনের মেয়াদ {new_days} দিন সেট করা হয়েছে!")
     except ValueError:
         await update.message.reply_text("❌ সঠিক দিন লিখুন। যেমন: /setdays 30")
-
 
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
@@ -655,11 +426,14 @@ async def handle_trx_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     cursor.execute("SELECT selected_product FROM users WHERE user_id = ?", (user.id,))
     u_row = cursor.fetchone()
-    prod_key = u_row if (u_row and u_row in PRODUCTS) else "p1"
-    required_amount = get_product_price(prod_key)
+    (cart_str,) = u_row if u_row else ("",)
+    selected_keys, required_amount = get_cart_total(cart_str)
+
+    if not selected_keys:
+        await update.message.reply_text("⚠️ আপনি কোনো প্রোডাক্ট সিলেক্ট করেননি। আগে /start দিয়ে প্রোডাক্ট সিলেক্ট করুন।")
+        return
 
     text = update.message.text.strip().upper()
-
     if " " in text or len(text) < 6 or len(text) > 15 or not text.isalnum():
         await update.message.reply_text("❌ সঠিক Transaction ID (TrxID) পাঠান। উদাহরণ: 71A2B3C4")
         return
@@ -675,21 +449,21 @@ async def handle_trx_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         if amount < required_amount:
             await update.message.reply_text(
-                f"❌ কম টাকা পাঠানো হয়েছে ({int(amount)} Tk)। {PRODUCTS[prod_key]['name']}-এর জন্য পুরো {int(required_amount)} Tk পাঠান।"
+                f"❌ কম টাকা পাঠানো হয়েছে ({int(amount)} Tk)। আপনার সিলেক্ট করা প্যাকেজগুলোর জন্য মোট {int(required_amount)} Tk পাঠান।"
             )
             return
 
         cursor.execute("UPDATE sms_logs SET used = 1 WHERE trx_id = ?", (trx_id,))
         conn.commit()
-        await send_invite_to_customer(context.bot, user.id, trx_id, amount, prod_key)
+        await send_invite_to_customer(context.bot, user.id, trx_id, amount, cart_str)
     else:
         cursor.execute(
             "INSERT OR REPLACE INTO pending_users (trx_id, user_id, product_key) VALUES (?, ?, ?)",
-            (trx_id, user.id, prod_key)
+            (trx_id, user.id, cart_str)
         )
         conn.commit()
         await update.message.reply_text(
-            f"⏳ আপনার TrxID ({trx_id}) জমা হয়েছে ({PRODUCTS[prod_key]['name']})।\n"
+            f"⏳ আপনার TrxID ({trx_id}) জমা হয়েছে।\n"
             "Nagad থেকে কনফার্মেশন SMS পাওয়ার সাথে সাথেই ভেরিফাই হয়ে যাবে!"
         )
 
@@ -720,9 +494,10 @@ async def get_video_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id == ADMIN_ID and context.args:
-        target_id = int(context.args)
-        prod_key = context.args if len(context.args) > 1 and context.args in PRODUCTS else "p1"
-        await send_invite_to_customer(context.bot, target_id, "MANUAL_ADMIN", get_product_price(prod_key), prod_key)
+        target_id = int("".join(context.args[:1]))
+        cart_str = "".join(context.args[1:2]) if len(context.args) > 1 else "p1"
+        _, total_amt = get_cart_total(cart_str)
+        await send_invite_to_customer(context.bot, target_id, "MANUAL_ADMIN", total_amt, cart_str)
 
 
 async def subscription_checker(bot):
@@ -768,6 +543,8 @@ async def subscription_checker(bot):
             print(f"Subscription checker error: {e}")
 
         await asyncio.sleep(3600)
+
+
 async def verify_sms_endpoint(request):
     if request.method == "GET":
         secret_key = request.query.get("secret_key", "")
@@ -803,9 +580,8 @@ async def verify_sms_endpoint(request):
     pending = cursor.fetchone()
 
     if pending:
-        customer_id, prod_key = pending
-        prod_key = prod_key if prod_key in PRODUCTS else "p1"
-        required_amount = get_product_price(prod_key)
+        customer_id, cart_str = pending
+        _, required_amount = get_cart_total(cart_str)
 
         if amount >= required_amount:
             cursor.execute("UPDATE sms_logs SET used = 1 WHERE trx_id = ?", (trx_id,))
@@ -813,14 +589,13 @@ async def verify_sms_endpoint(request):
             conn.commit()
 
             ptb_app = request.app["ptb_app"]
-            await send_invite_to_customer(ptb_app.bot, customer_id, trx_id, amount, prod_key)
+            await send_invite_to_customer(ptb_app.bot, customer_id, trx_id, amount, cart_str)
 
     return web.json_response({"status": "ok", "trx_id": trx_id})
 
 
 async def health_check(request):
     return web.Response(text="Bot & Subscription Server Running!")
-
 
 async def main():
     ptb_app = Application.builder().token(TOKEN).build()
@@ -839,7 +614,6 @@ async def main():
     ptb_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_trx_id))
     ptb_app.add_handler(MessageHandler(filters.VIDEO, get_video_id))
     ptb_app.add_handler(MessageHandler(filters.PHOTO | filters.Document.ALL, payment_screenshot))
-
     web_app = web.Application()
     web_app["ptb_app"] = ptb_app
     web_app.router.add_get("/", health_check)
@@ -863,4 +637,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-    
