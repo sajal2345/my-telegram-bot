@@ -197,7 +197,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await query.edit_message_text(
             "🕵️ <b>Welcome to Detective Ai!</b>\n\n"
-            "🔰 নিচের Grope থেকে আপনার পছন্দের group-টি সিলেক্ট করুন। তারপর <b>🔰পেমেন্ট করুন🔰</b> বাটনে ক্লিক করুন:",
+            "🔰 নিচের Group থেকে আপনার পছন্দের group-টি সিলেক্ট করুন। তারপর <b>🔰পেমেন্ট করুন🔰</b> বাটনে ক্লিক করুন:",
             reply_markup=build_product_keyboard(selected_keys),
             parse_mode="HTML"
         )
@@ -247,7 +247,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             video_id = "BAACAgUAAxkBAAIBpmr9jeQYdMyAWRC_demevFaqCsLEAAIEKgACwTHxV5Nqev6BuXZNPQQ"
             caption_text = (
                 f"💳 <b>Nagad Payment Details:</b>\n (🌟পেমেন্ট এর আগে উপরের ভিডিওটি অবশ্যই দেখবেন)\n\n"
-                "📦 প্যাকেজ: <b>{names}</b>\n\n"
+                f"📦 প্যাকেজ: <b>{names}</b>\n\n"
                 f"📱 Nagad Personal: <code>{NAGAD_NUMBER.strip()}</code>\n\n"
                 f"💰 মোট দাম: <b>{int(total_amount)} Tk</b> (Send Money)\n"
                 f"⏳ মেয়াদ: <b>{days} দিন</b>\n\n"
@@ -258,7 +258,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             video_id = "BAACAgUAAxkBAAIBrWr9kzpL0zPNbtDNhZVHZd4jeFDlAAINKgACwTHxVzN1OjuVRxvtPQQ"
             caption_text = (
                 f"💳 <b>BKash Payment Details:</b>\n(⚠️ আমাদের নিজস্ব বিকাশ একাউন্ট নেই। তাই উপরের ভিডিওটি দেখে আপনার বিকাশ একাউন্ট থেকে আমাদের নগদ একাউন্টে সেন্ড মানি করুন)\n\n"
-                "📦 প্যাকেজ: <b>{names}</b>\n\n"
+                f"📦 প্যাকেজ: <b>{names}</b>\n\n"
                 f"📱 Nagad Personal: <code>{NAGAD_NUMBER.strip()}</code>\n"
                 f"💰 মোট দাম: <b>{int(total_amount)} Tk</b> (Send Money)\n"
                 f"⏳ মেয়াদ: <b>{days} দিন</b>\n\n"
@@ -285,7 +285,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🕵️ <b>Welcome to Detective Ai!</b>\n\n"
         "🔰 যে গ্রুপ নিতে চান সেটায় ক্লিক করে নির্বাচন করুন। এর পর Checkout বাটনে ক্লিক করুন:",
-        reply_markup=build_product_keyboard([])
+        reply_markup=build_product_keyboard([]),
+        parse_mode="HTML" 
     )
 
 async def check_user_status(message, user_id: int):
