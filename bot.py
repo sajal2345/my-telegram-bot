@@ -21,10 +21,10 @@ NAGAD_NUMBER = "\n\n9856000616951329\n"
 POINTS_FOR_FREE = 2  # ২ পয়েন্ট হলে ১টি গ্রুপ ফ্রি পাবে
 
 PRODUCTS = {
-    "p1": {"name": "Package 1", "channel_id": -1004459597302, "auto_link": True},
-    "p2": {"name": "Package 2", "channel_id": -1002829173374, "auto_link": True},
-    "p3": {"name": "Package 3", "channel_id": -1002609377697, "auto_link": True},
-    "p4": {"name": "Package 4", "channel_id": None, "auto_link": False},
+    "p1": {"name": "Bd live/Call Record NOV 2026", "channel_id": -1004459597302, "auto_link": True},
+    "p2": {"name": "Tango Videos", "channel_id": -1002829173374, "auto_link": True},
+    "p3": {"name": "Chamet Videos", "channel_id": -1002609377697, "auto_link": True},
+    "p4": {"name": "বাচ্চাদের ভিডিও", "channel_id": None, "auto_link": False},
 }
 
 conn = sqlite3.connect("payments.db", check_same_thread=False)
