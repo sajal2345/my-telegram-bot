@@ -79,6 +79,7 @@ def get_cart_total(cart_str: str):
     unique_keys = list(dict.fromkeys(keys))
     total = sum(get_product_price(k) for k in unique_keys)
     return unique_keys, total
+
 async def send_invite_to_customer(bot, customer_id: int, trx_id: str, paid_amount: float = 0.0, cart_str: str = "p1"):
     try:
         keys, _ = get_cart_total(cart_str)
@@ -140,7 +141,6 @@ async def send_invite_to_customer(bot, customer_id: int, trx_id: str, paid_amoun
             text=f"⚠️ Invite Link পাঠাতে সমস্যা হয়েছে (User: {customer_id}, TrxID: {trx_id}): {e}"
         )
 
-
 def build_product_keyboard(selected_keys: list) -> InlineKeyboardMarkup:
     p1_price = int(get_product_price("p1"))
     group_price = int(get_product_price("p2"))
@@ -163,21 +163,8 @@ def build_product_keyboard(selected_keys: list) -> InlineKeyboardMarkup:
             InlineKeyboardButton(f"💳 Checkout & Pay ({total_price} Tk) ➡️", callback_data="checkout")
         ])
 
-    keyboard.append([InlineKeyboardButton("📅 মেয়াদ দেখুন (Status)", callback_data="status")])
     return InlineKeyboardMarkup(keyboard)
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    if user:
-        cursor.execute("INSERT OR IGNORE INTO users (user_id, full_name, selected_product) VALUES (?, ?, '')", (user.id, user.full_name))
-        cursor.execute("UPDATE users SET full_name = ?, selected_product = '' WHERE user_id = ?", (user.full_name, user.id))
-        conn.commit()
-
-    await update.message.reply_text(
-        "🕵️ <b>Welcome to Detective Ai!</b>\n\n"
-        "🔰 যে গ্রুপ নিতে চান সেটায় ক্লিক করে নির্বাচন করুন। এর পর Checkout বাটনে ক্লিক করুন:",
-        reply_markup=build_product_keyboard([])
-    )
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -202,6 +189,19 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await query.edit_message_reply_markup(reply_markup=build_product_keyboard(selected_keys))
 
+    elif query.data == "back_to_products":
+        cursor.execute("SELECT selected_product FROM users WHERE user_id = ?", (user_id,))
+        row = cursor.fetchone()
+        (current_cart,) = row if row else ("",)
+        selected_keys, _ = get_cart_total(current_cart)
+
+        await query.edit_message_text(
+            "🕵️ <b>Welcome to Detective Ai!</b>\n\n"
+            "🔰 নিচের প্রোডাক্টগুলোতে ক্লিক করে সিলেক্ট (✅) করুন (একাধিক প্রোডাক্ট একসাথে নিতে পারবেন), তারপর <b>Checkout</b> বাটনে ক্লিক করুন:",
+            reply_markup=build_product_keyboard(selected_keys),
+            parse_mode="HTML"
+        )
+
     elif query.data == "checkout":
         cursor.execute("SELECT selected_product FROM users WHERE user_id = ?", (user_id,))
         row = cursor.fetchone()
@@ -212,18 +212,22 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.reply_text("⚠️ দয়া করে আগে অন্তত ১টি প্রোডাক্ট সিলেক্ট করুন!")
             return
 
-        names = "\n".join([f"• {PRODUCTS[k]['name']}" for k in selected_keys])
+        names = "\n".join([f"• <b>{PRODUCTS[k]['name']}</b>" for k in selected_keys])
         keyboard = [
             [
                 InlineKeyboardButton("🪪 বিকাশ (bKash)", callback_data="pay_bkash"),
                 InlineKeyboardButton("🪪 নগদ (Nagad)", callback_data="pay_nagad")
+            ],
+            [
+                InlineKeyboardButton("🔙 Back to Products", callback_data="back_to_products")
             ]
         ]
-        await query.message.reply_text(
-            f"🛒 আপনার সিলেক্ট করা প্যাকেজসমূহ:\n{names}\n\n"
-            f"💰 সর্বমোট মূল্য: {int(total_amount)} Tk\n\n"
+        await query.edit_message_text(
+            f"🛒 <b>আপনার সিলেক্ট করা প্যাকেজসমূহ:</b>\n{names}\n\n"
+            f"💰 <b>সর্বমোট মূল্য: {int(total_amount)} Tk</b>\n\n"
             "💳 পেমেন্ট মাধ্যম সিলেক্ট করুন:",
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
         )
 
     elif query.data in ["pay_nagad", "pay_bkash"]:
@@ -242,35 +246,47 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if query.data == "pay_nagad":
             video_id = "BAACAgUAAxkBAAIBpmr9jeQYdMyAWRC_demevFaqCsLEAAIEKgACwTHxV5Nqev6BuXZNPQQ"
             caption_text = (
-                f"💳 Nagad Payment Details\n📦 প্যাকেজ: {names}\n"
+                f"💳 <b>Nagad Payment Details</b>\n📦 প্যাকেজ: <b>{names}</b>\n"
                 "(🌟পেমেন্ট এর আগে উপরের ভিডিওটি অবশ্যই দেখবেন)\n\n"
-                f"📱 Nagad Personal: {NAGAD_NUMBER}\n"
-                f"💰 মোট দাম: {int(total_amount)} Tk (Send Money)\n"
-                f"⏳ মেয়াদ: {days} দিন\n\n"
+                f"📱 Nagad Personal: <code>{NAGAD_NUMBER.strip()}</code>\n"
+                f"💰 মোট দাম: <b>{int(total_amount)} Tk</b> (Send Money)\n"
+                f"⏳ মেয়াদ: <b>{days} দিন</b>\n\n"
                 "📌 নির্দেশনা:\n"
-                "১. টাকা পাঠানোর পর আপনার Transaction ID (TrxID) টি কপি করে মেসেজ করুন (যেমন: 71A2B3C4)।\n"
+                "১. টাকা পাঠানোর পর আপনার Transaction ID (TrxID) টি কপি করে মেসেজ করুন (যেমন: <code>71A2B3C4</code>)।"
             )
         else:
             video_id = "BAACAgUAAxkBAAIBrWr9kzpL0zPNbtDNhZVHZd4jeFDlAAINKgACwTHxVzN1OjuVRxvtPQQ"
             caption_text = (
-                f"💳 bKash Payment Details\n📦 প্যাকেজ: {names}\n"
+                f"💳 <b>bKash Payment Details</b>\n📦 প্যাকেজ: <b>{names}</b>\n"
                 "(⚠️ আমাদের নিজস্ব বিকাশ একাউন্ট নেই। তাই উপরের ভিডিওটি দেখে আপনার বিকাশ একাউন্ট থেকে আমাদের নগদ একাউন্টে সেন্ড মানি করুন)\n\n"
-                f"📱 Nagad Personal: {NAGAD_NUMBER}\n"
-                f"💰 মোট দাম: {int(total_amount)} Tk (Send Money)\n"
-                f"⏳ মেয়াদ: {days} দিন\n\n"
+                f"📱 Nagad Personal: <code>{NAGAD_NUMBER.strip()}</code>\n"
+                f"💰 মোট দাম: <b>{int(total_amount)} Tk</b> (Send Money)\n"
+                f"⏳ মেয়াদ: <b>{days} দিন</b>\n\n"
                 "📌 নির্দেশনা:\n"
-                "১. টাকা পাঠানোর পর আপনার Transaction ID (TrxID) টি কপি করে মেসেজ করুন (যেমন: 9H7G6F5D)।\n"
+                "১. টাকা পাঠানোর পর আপনার Transaction ID (TrxID) টি কপি করে মেসেজ করুন (যেমন: <code>9H7G6F5D</code>)।"
             )
 
         try:
-            await query.message.reply_video(video=video_id, caption=caption_text)
+            await query.message.reply_video(video=video_id, caption=caption_text, parse_mode="HTML")
         except Exception as e:
-            await query.message.reply_text(caption_text)
+            await query.message.reply_text(caption_text, parse_mode="HTML")
             await context.bot.send_message(chat_id=ADMIN_ID, text=f"⚠️ Video Error: {e}")
 
     elif query.data == "status":
         await check_user_status(query.message, user_id)
+               
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    if user:
+        cursor.execute("INSERT OR IGNORE INTO users (user_id, full_name, selected_product) VALUES (?, ?, '')", (user.id, user.full_name))
+        cursor.execute("UPDATE users SET full_name = ?, selected_product = '' WHERE user_id = ?", (user.full_name, user.id))
+        conn.commit()
 
+    await update.message.reply_text(
+        "🕵️ <b>Welcome to Detective Ai!</b>\n\n"
+        "🔰 যে গ্রুপ নিতে চান সেটায় ক্লিক করে নির্বাচন করুন। এর পর Checkout বাটনে ক্লিক করুন:",
+        reply_markup=build_product_keyboard([])
+    )
 
 async def check_user_status(message, user_id: int):
     cursor.execute("SELECT expiry_date FROM subscriptions WHERE user_id = ?", (user_id,))
