@@ -74,81 +74,218 @@ def get_product_price(prod_key: str) -> float:
     if prod_key == "p1":
         return float(get_setting("amount_p1", "50.0"))
     return float(get_setting("amount_group", "100.0"))
-async def send_invite_to_customer(bot, customer_id: int, trx_id: str, paid_amount: float = 0.0, prod_key: str = "p1"):
+
+def get_cart_total(cart_str: str) -> tuple[list[str], float]:
+    if not cart_str:
+        return [], 0.0
+    keys = [k for k in cart_str.split(",") if k in PRODUCTS]
+    # ডুপ্লিকেট বাদ দিয়ে অর্ডার ঠিক রাখা
+    unique_keys = list(dict.fromkeys(keys))
+    total = sum(get_product_price(k) for k in unique_keys)
+    return unique_keys, total
+
+async def send_invite_to_customer(bot, customer_id: int, trx_id: str, paid_amount: float = 0.0, cart_str: str = "p1"):
     try:
-        product = PRODUCTS.get(prod_key, PRODUCTS["p1"])
+        keys, _ = get_cart_total(cart_str)
+        if not keys:
+            keys = ["p1"]
+
         days = int(get_setting("days", "30"))
         now = datetime.now()
-
-        if not product["auto_link"]:
-            await bot.send_message(
-                chat_id=customer_id,
-                text=(
-                    f"✅ Payment Verified! (TrxID: {trx_id})\n"
-                    f"📦 প্যাকেজ: {product['name']}\n\n"
-                    "⏳ আপনার পেমেন্ট সফলভাবে ভেরিফাই হয়েছে। অ্যাডমিন খুব শীঘ্রই আপনাকে এই প্রোডাক্টের লিংকটি পাঠিয়ে দেবেন।"
-                )
-            )
-            await bot.send_message(
-                chat_id=ADMIN_ID,
-                text=(
-                    f"🔔 **নতুন অর্ডার - লিংক পাঠান (Product 4)**\n\n"
-                    f"👤 Customer ID: `{customer_id}`\n"
-                    f"🧾 TrxID: `{trx_id}`\n"
-                    f"💰 Amount: {paid_amount} Tk\n\n"
-                    f"👉 লিংক পাঠাতে নিচের কমান্ডটি কপি করে লিংকসহ পাঠান:\n"
-                    f"`/sendlink {customer_id} https://your-link-here`"
-                ),
-                parse_mode="Markdown"
-            )
-            return
-
-        target_channel_id = product["channel_id"]
-        cursor.execute("SELECT expiry_date FROM subscriptions WHERE user_id = ?", (customer_id,))
-        existing = cursor.fetchone()
-        if existing:
-            (old_expiry_str,) = existing
-            old_expiry = datetime.fromisoformat(old_expiry_str)
-            base_date = old_expiry if old_expiry > now else now
-        else:
-            base_date = now
-
-        new_expiry = base_date + timedelta(days=days)
+        new_expiry = now + timedelta(days=days)
         expiry_str = new_expiry.strftime("%d-%m-%Y %I:%M %p")
 
-        cursor.execute(
-            "INSERT OR REPLACE INTO subscriptions (user_id, expiry_date, reminded, channel_id) VALUES (?, ?, 0, ?)",
-            (customer_id, new_expiry.isoformat(), target_channel_id)
-        )
-        conn.commit()
+        auto_links_text = []
+        has_p4 = False
+        bought_names = []
 
-        invite = await bot.create_chat_invite_link(chat_id=target_channel_id, member_limit=1)
-        await bot.send_message(
-            chat_id=customer_id,
-            text=(
-                f"✅ Payment Verified! (TrxID: {trx_id})\n"
-                f"📦 প্যাকেজ: {product['name']}\n"
-                f"📅 মেয়াদ: {days} দিন (শেষ হবে: {expiry_str})\n\n"
-                "🔗 আপনার Private Channel Join Link:\n"
-                f"{invite.invite_link}\n\n"
-                "⚠️ এই Link একজন ব্যবহারকারী একবার ব্যবহার করতে পারবেন।"
-            )
+        for k in keys:
+            product = PRODUCTS[k]
+            bought_names.append(product["name"])
+
+            if product["auto_link"] and product["channel_id"]:
+                target_ch = product["channel_id"]
+                cursor.execute(
+                    "INSERT OR REPLACE INTO subscriptions (user_id, expiry_date, reminded, channel_id) VALUES (?, ?, 0, ?)",
+                    (customer_id, new_expiry.isoformat(), target_ch)
+                )
+                conn.commit()
+                invite = await bot.create_chat_invite_link(chat_id=target_ch, member_limit=1)
+                auto_links_text.append(f"🔗 **{product['name']}**:\n{invite.invite_link}")
+            else:
+                has_p4 = True
+
+        # কাস্টমারকে মেসেজ পাঠানো
+        msg = (
+            f"✅ **Payment Verified!** (TrxID: `{trx_id}`)\n"
+            f"📦 প্যাকেজসমূহ: {', '.join(bought_names)}\n"
+            f"📅 মেয়াদ: {days} দিন (শেষ হবে: {expiry_str})\n\n"
         )
-        await bot.send_message(
-            chat_id=ADMIN_ID,
-            text=(
-                f"🎉 Auto-Verified ({product['name']})!\n"
-                f"Customer ID: {customer_id}\n"
-                f"TrxID: {trx_id}\n"
-                f"Amount: {paid_amount} Tk\n"
-                f"Valid Till: {expiry_str}"
-            )
+        if auto_links_text:
+            msg += "\n\n".join(auto_links_text) + "\n\n⚠️ প্রতিটি লিংক শুধুমাত্র একবার ব্যবহারযোগ্য।"
+        if has_p4:
+            msg += f"\n\n⏳ **{PRODUCTS['p4']['name']}**-এর লিংক অ্যাডমিন শীঘ্রই আপনাকে ইনবক্সে পাঠিয়ে দেবেন।"
+
+        await bot.send_message(chat_id=customer_id, text=msg, parse_mode="Markdown")
+
+        # অ্যাডমিনকে রিপোর্ট পাঠানো
+        admin_msg = (
+            f"🎉 **নতুন পেমেন্ট ভেরিফাই হয়েছে!**\n"
+            f"👤 Customer ID: `{customer_id}`\n"
+            f"📦 প্যাকেজ: {', '.join(bought_names)}\n"
+            f"🧾 TrxID: `{trx_id}`\n"
+            f"💰 Amount: {paid_amount} Tk"
         )
+        if has_p4:
+            admin_msg += (
+                f"\n\n🔔 **Product 4-এর লিংক পাঠান:**\n"
+                f"`/sendlink {customer_id} https://your-link-here`"
+            )
+
+        await bot.send_message(chat_id=ADMIN_ID, text=admin_msg, parse_mode="Markdown")
+
     except Exception as e:
         await bot.send_message(
             chat_id=ADMIN_ID,
             text=f"⚠️ Invite Link পাঠাতে সমস্যা হয়েছে (User: {customer_id}, TrxID: {trx_id}): {e}"
         )
+
+
+def build_product_keyboard(selected_keys: list[str]) -> InlineKeyboardMarkup:
+    p1_price = int(get_product_price("p1"))
+    group_price = int(get_product_price("p2"))
+
+    prices = {"p1": p1_price, "p2": group_price, "p3": group_price, "p4": group_price}
+    keyboard = []
+
+    for k in ["p1", "p2", "p3", "p4"]:
+        icon = "✅" if k in selected_keys else "⬜"
+        keyboard.append([
+            InlineKeyboardButton(
+                f"{icon} {PRODUCTS[k]['name']} - {prices[k]} Tk",
+                callback_data=f"toggle_{k}"
+            )
+        ])
+
+    total_price = sum(prices[k] for k in selected_keys)
+    if selected_keys:
+        keyboard.append([
+            InlineKeyboardButton(f"💳 Checkout & Pay ({total_price} Tk) ➡️", callback_data="checkout")
+        ])
+
+    keyboard.append([InlineKeyboardButton("📅 মেয়াদ দেখুন (Status)", callback_data="status")])
+    return InlineKeyboardMarkup(keyboard)
+
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    if user:
+        cursor.execute("INSERT OR IGNORE INTO users (user_id, full_name, selected_product) VALUES (?, ?, '')", (user.id, user.full_name))
+        cursor.execute("UPDATE users SET full_name = ?, selected_product = '' WHERE user_id = ?", (user.full_name, user.id))
+        conn.commit()
+
+    await update.message.reply_text(
+        "🕵️ **Welcome to Detective Ai!**\n\n"
+        "🔰 নিচের প্রোডাক্টগুলোতে ক্লিক করে সিলেক্ট (✅) করুন (একাধিক প্রোডাক্ট একসাথে নিতে পারবেন), তারপর **Checkout** বাটনে ক্লিক করুন:",
+        reply_markup=build_product_keyboard([]),
+        parse_mode="Markdown"
+    )
+
+
+async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+
+    # প্রোডাক্ট সিলেক্ট / আনসিলেক্ট (Add to Cart)
+    if query.data.startswith("toggle_"):
+        prod_key = query.data.replace("toggle_", "")
+        cursor.execute("SELECT selected_product FROM users WHERE user_id = ?", (user_id,))
+        row = cursor.fetchone()
+        current_cart = row if (row and row) else ""
+        selected_keys, _ = get_cart_total(current_cart)
+
+        if prod_key in selected_keys:
+            selected_keys.remove(prod_key)
+        else:
+            selected_keys.append(prod_key)
+
+        new_cart_str = ",".join(selected_keys)
+        cursor.execute("UPDATE users SET selected_product = ? WHERE user_id = ?", (new_cart_str, user_id))
+        conn.commit()
+
+        await query.edit_message_reply_markup(reply_markup=build_product_keyboard(selected_keys))
+
+    # Checkout বাটনে ক্লিক করলে পেমেন্ট অপশন আসবে
+    elif query.data == "checkout":
+        cursor.execute("SELECT selected_product FROM users WHERE user_id = ?", (user_id,))
+        row = cursor.fetchone()
+        current_cart = row if (row and row) else ""
+        selected_keys, total_amount = get_cart_total(current_cart)
+
+        if not selected_keys:
+            await query.message.reply_text("⚠️ দয়া করে আগে অন্তত ১টি প্রোডাক্ট সিলেক্ট করুন!")
+            return
+
+        names = "\n".join([f"• {PRODUCTS[k]['name']}" for k in selected_keys])
+        keyboard = [
+            [
+                InlineKeyboardButton("🪪 বিকাশ (bKash)", callback_data="pay_bkash"),
+                InlineKeyboardButton("🪪 নগদ (Nagad)", callback_data="pay_nagad")
+            ]
+        ]
+        await query.message.reply_text(
+            f"🛒 **আপনার সিলেক্ট করা প্যাকেজসমূহ:**\n{names}\n\n"
+            f"💰 **সর্বমোট মূল্য: {int(total_amount)} Tk**\n\n"
+            "💳 পেমেন্ট মাধ্যম সিলেক্ট করুন:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+
+    elif query.data in ["pay_nagad", "pay_bkash"]:
+        cursor.execute("SELECT selected_product FROM users WHERE user_id = ?", (user_id,))
+        row = cursor.fetchone()
+        current_cart = row if (row and row) else ""
+        selected_keys, total_amount = get_cart_total(current_cart)
+
+        if not selected_keys:
+            await query.message.reply_text("⚠️ কোনো প্রোডাক্ট সিলেক্ট করা নেই। আবার /start চাপুন।")
+            return
+
+        days = int(get_setting("days", "500"))
+        names = ", ".join([PRODUCTS[k]["name"] for k in selected_keys])
+
+        if query.data == "pay_nagad":
+            video_id = "BAACAgUAAxkBAAIBpmr9jeQYdMyAWRC_demevFaqCsLEAAIEKgACwTHxV5Nqev6BuXZNPQQ"
+            caption_text = (
+                f"💳 Nagad Payment Details\n📦 প্যাকেজ: {names}\n"
+                "(🌟পেমেন্ট এর আগে উপরের ভিডিওটি অবশ্যই দেখবেন)\n\n"
+                f"📱 Nagad Personal: {NAGAD_NUMBER}\n"
+                f"💰 মোট দাম: {int(total_amount)} Tk (Send Money)\n"
+                f"⏳ মেয়াদ: {days} দিন\n\n"
+                "📌 নির্দেশনা:\n"
+                "১. টাকা পাঠানোর পর আপনার Transaction ID (TrxID) টি কপি করে মেসেজ করুন (যেমন: 71A2B3C4)।\n"
+            )
+        else:
+            video_id = "BAACAgUAAxkBAAIBrWr9kzpL0zPNbtDNhZVHZd4jeFDlAAINKgACwTHxVzN1OjuVRxvtPQQ"
+            caption_text = (
+                f"💳 bKash Payment Details\n📦 প্যাকেজ: {names}\n"
+                "(⚠️ আমাদের নিজস্ব বিকাশ একাউন্ট নেই। তাই উপরের ভিডিওটি দেখে আপনার বিকাশ একাউন্ট থেকে আমাদের নগদ একাউন্টে সেন্ড মানি করুন)\n\n"
+                f"📱 Nagad Personal: {NAGAD_NUMBER}\n"
+                f"💰 মোট দাম: {int(total_amount)} Tk (Send Money)\n"
+                f"⏳ মেয়াদ: {days} দিন\n\n"
+                "📌 নির্দেশনা:\n"
+                "১. টাকা পাঠানোর পর আপনার Transaction ID (TrxID) টি কপি করে মেসেজ করুন (যেমন: 9H7G6F5D)।\n"
+            )
+
+        try:
+            await query.message.reply_video(video=video_id, caption=caption_text)
+        except Exception as e:
+            await query.message.reply_text(caption_text)
+            await context.bot.send_message(chat_id=ADMIN_ID, text=f"⚠️ Video Error: {e}")
+
+    elif query.data == "status":
+        await check_user_status(query.message, user_id)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -319,7 +456,7 @@ async def sendlink(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
     if len(context.args) < 2:
-        await update.message.reply_text("ব্যবহার করুন:\n/sendlink <user_id> <link>\nউদাহরণ: /sendlink 123456789 https://t.me")
+        await update.message.reply_text("ব্যবহার করুন:\n/sendlink <user_id> <link>")
         return
     try:
         target_user_id = int(context.args)
@@ -329,9 +466,118 @@ async def sendlink(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text=f"🎉 অ্যাডমিন আপনার **{PRODUCTS['p4']['name']}**-এর লিংক পাঠিয়েছেন:\n\n🔗 {link_text}",
             parse_mode="Markdown"
         )
-        await update.message.reply_text(f"✅ ইউজার (`{target_user_id}`)-কে লিংক সফলভাবে পাঠানো হয়েছে!", parse_mode="Markdown")
+        await update.message.reply_text(f"✅ ইউজার (`{target_user_id}`)-কে লিংক পাঠানো হয়েছে!", parse_mode="Markdown")
     except Exception as e:
-        await update.message.reply_text(f"❌ লিংক পাঠানো যায়নি। এরর: {e}")
+        await update.message.reply_text(f"❌ এরর: {e}")
+
+
+async def handle_trx_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    if user is None or not update.message or not update.message.text:
+        return
+
+    cursor.execute("INSERT OR IGNORE INTO users (user_id, full_name) VALUES (?, ?)", (user.id, user.full_name))
+    conn.commit()
+
+    cursor.execute("SELECT selected_product FROM users WHERE user_id = ?", (user.id,))
+    u_row = cursor.fetchone()
+    cart_str = u_row if (u_row and u_row) else "p1"
+    selected_keys, required_amount = get_cart_total(cart_str)
+
+    if not selected_keys:
+        await update.message.reply_text("⚠️ আপনি কোনো প্রোডাক্ট সিলেক্ট করেননি। আগে /start দিয়ে প্রোডাক্ট সিলেক্ট করুন।")
+        return
+
+    text = update.message.text.strip().upper()
+    if " " in text or len(text) < 6 or len(text) > 15 or not text.isalnum():
+        await update.message.reply_text("❌ সঠিক Transaction ID (TrxID) পাঠান। উদাহরণ: 71A2B3C4")
+        return
+
+    trx_id = text
+    cursor.execute("SELECT amount, used FROM sms_logs WHERE trx_id = ?", (trx_id,))
+    row = cursor.fetchone()
+
+    if row:
+        amount, used = row
+        if used == 1:
+            await update.message.reply_text("⚠️ এই Transaction ID টি ইতিমধ্যে ব্যবহার করা হয়েছে!")
+            return
+        if amount < required_amount:
+            await update.message.reply_text(
+                f"❌ কম টাকা পাঠানো হয়েছে ({int(amount)} Tk)। আপনার সিলেক্ট করা প্যাকেজগুলোর জন্য মোট {int(required_amount)} Tk পাঠান।"
+            )
+            return
+
+        cursor.execute("UPDATE sms_logs SET used = 1 WHERE trx_id = ?", (trx_id,))
+        conn.commit()
+        await send_invite_to_customer(context.bot, user.id, trx_id, amount, cart_str)
+    else:
+        cursor.execute(
+            "INSERT OR REPLACE INTO pending_users (trx_id, user_id, product_key) VALUES (?, ?, ?)",
+            (trx_id, user.id, cart_str)
+        )
+        conn.commit()
+        await update.message.reply_text(
+            f"⏳ আপনার TrxID ({trx_id}) জমা হয়েছে।\n"
+            "Nagad থেকে কনফার্মেশন SMS পাওয়ার সাথে সাথেই ভেরিফাই হয়ে যাবে!"
+        )
+
+
+async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id == ADMIN_ID and context.args:
+        target_id = int(context.args)
+        cart_str = context.args if len(context.args) > 1 else "p1"
+        _, total_amt = get_cart_total(cart_str)
+        await send_invite_to_customer(context.bot, target_id, "MANUAL_ADMIN", total_amt, cart_str)
+
+
+async def verify_sms_endpoint(request):
+    if request.method == "GET":
+        secret_key = request.query.get("secret_key", "")
+        trx_id = request.query.get("trx_id", "").strip().upper()
+        amount_str = request.query.get("amount", "0")
+    else:
+        try:
+            data = await request.json()
+            secret_key = data.get("secret_key", "")
+            trx_id = str(data.get("trx_id", "")).strip().upper()
+            amount_str = str(data.get("amount", "0"))
+        except Exception:
+            return web.json_response({"status": "invalid json"}, status=400)
+
+    if secret_key != SECRET_KEY:
+        return web.json_response({"status": "unauthorized"}, status=403)
+
+    try:
+        amount = float(amount_str)
+    except ValueError:
+        amount = 0.0
+
+    if not trx_id or amount <= 0:
+        return web.json_response({"status": "bad data"}, status=400)
+
+    cursor.execute("SELECT used FROM sms_logs WHERE trx_id = ?", (trx_id,))
+    existing = cursor.fetchone()
+    if not existing:
+        cursor.execute("INSERT INTO sms_logs (trx_id, amount, used) VALUES (?, ?, 0)", (trx_id, amount))
+        conn.commit()
+
+    cursor.execute("SELECT user_id, product_key FROM pending_users WHERE trx_id = ?", (trx_id,))
+    pending = cursor.fetchone()
+
+    if pending:
+        customer_id, cart_str = pending
+        _, required_amount = get_cart_total(cart_str)
+
+        if amount >= required_amount:
+            cursor.execute("UPDATE sms_logs SET used = 1 WHERE trx_id = ?", (trx_id,))
+            cursor.execute("DELETE FROM pending_users WHERE trx_id = ?", (trx_id,))
+            conn.commit()
+
+            ptb_app = request.app["ptb_app"]
+            await send_invite_to_customer(ptb_app.bot, customer_id, trx_id, amount, cart_str)
+
+    return web.json_response({"status": "ok", "trx_id": trx_id})
 
 
 async def setdays(update: Update, context: ContextTypes.DEFAULT_TYPE):
