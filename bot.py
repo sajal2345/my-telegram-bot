@@ -165,7 +165,8 @@ def build_product_keyboard(selected_keys: list) -> InlineKeyboardMarkup:
 
     keyboard.append([InlineKeyboardButton("📅 মেয়াদ দেখুন (Status)", callback_data="status")])
     return InlineKeyboardMarkup(keyboard)
-    async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if user:
         cursor.execute("INSERT OR IGNORE INTO users (user_id, full_name, selected_product) VALUES (?, ?, '')", (user.id, user.full_name))
@@ -177,7 +178,6 @@ def build_product_keyboard(selected_keys: list) -> InlineKeyboardMarkup:
         "🔰 নিচের প্রোডাক্টগুলোতে ক্লিক করে সিলেক্ট (✅) করুন (একাধিক প্রোডাক্ট একসাথে নিতে পারবেন), তারপর Checkout বাটনে ক্লিক করুন:",
         reply_markup=build_product_keyboard([])
     )
-
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
