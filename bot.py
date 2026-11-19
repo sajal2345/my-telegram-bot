@@ -195,8 +195,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         (current_cart,) = row if row else ("",)
         selected_keys, _ = get_cart_total(current_cart)
 
-        )
-
     elif query.data == "checkout":
         cursor.execute("SELECT selected_product FROM users WHERE user_id = ?", (user_id,))
         row = cursor.fetchone()
