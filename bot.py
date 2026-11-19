@@ -20,7 +20,7 @@ ADMIN_ID = 5653843581
 NAGAD_NUMBER = "\n\n9856000616951329\n"
 
 PRODUCTS = {
-    "p1": {"name": "BD Call/Live Record(নভেম্বর ২০২৬)", "channel_id": -1004459597302, "auto_link": True},
+    "p1": {"name": "BD Live/Call Record (নভেম্বর ২০২৬)", "channel_id": -1004459597302, "auto_link": True},
     "p2": {"name": "Tango Videos", "channel_id": -1002829173374, "auto_link": True},
     "p3": {"name": "Chamet Videos", "channel_id": -1002609377697, "auto_link": True},
     "p4": {"name": "বাচ্চাদের ভিডিও/Cp Vides", "channel_id": None, "auto_link": False},
