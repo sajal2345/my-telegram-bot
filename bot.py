@@ -174,8 +174,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn.commit()
 
     await update.message.reply_text(
-        "🕵️ Welcome to Detective Ai!\n\n"
-        "🔰 নিচের প্রোডাক্টগুলোতে ক্লিক করে সিলেক্ট (✅) করুন (একাধিক প্রোডাক্ট একসাথে নিতে পারবেন), তারপর Checkout বাটনে ক্লিক করুন:",
+        "🕵️ <b>Welcome to Detective Ai!</b>\n\n"
+        "🔰 যে গ্রুপ নিতে চান সেটায় ক্লিক করে নির্বাচন করুন। এর পর Checkout বাটনে ক্লিক করুন:",
         reply_markup=build_product_keyboard([])
     )
 
