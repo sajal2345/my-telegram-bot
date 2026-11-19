@@ -259,7 +259,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             caption_text = (
                 f"💳 <b>BKash Payment Details:</b>\n(⚠️ আমাদের নিজস্ব বিকাশ একাউন্ট নেই। তাই উপরের ভিডিওটি দেখে আপনার বিকাশ একাউন্ট থেকে আমাদের নগদ একাউন্টে সেন্ড মানি করুন)\n\n"
                 f"📦 প্যাকেজ: <b>{names}</b>\n\n"
-                f"📱 Nagad Personal: <code>{NAGAD_NUMBER.strip()}</code>\n"
+                f"📱 Nagad Personal: <code>{NAGAD_NUMBER.strip()}</code>\n\n"
                 f"💰 মোট দাম: <b>{int(total_amount)} Tk</b> (Send Money)\n"
                 f"⏳ মেয়াদ: <b>{days} দিন</b>\n\n"
                 "📌 <b>নির্দেশনা:</b>\n"
