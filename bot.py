@@ -873,6 +873,7 @@ async def main():
     ptb_app.add_handler(CommandHandler("start", start))
     ptb_app.add_handler(CommandHandler("status", status_cmd))
     ptb_app.add_handler(CommandHandler("refer", refer_cmd))
+    ptb_app.add_handler(CommandHandler("pending", pending_list))
     ptb_app.add_handler(CommandHandler("myid", myid))
     ptb_app.add_handler(CommandHandler("approve", approve))
     ptb_app.add_handler(CommandHandler("setamount1", setamount1))
