@@ -189,12 +189,19 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await query.edit_message_reply_markup(reply_markup=build_product_keyboard(selected_keys))
 
-    elif query.data == "back_to_products":
+   elif query.data == "back_to_products":
         cursor.execute("SELECT selected_product FROM users WHERE user_id = ?", (user_id,))
         row = cursor.fetchone()
         (current_cart,) = row if row else ("",)
         selected_keys, _ = get_cart_total(current_cart)
 
+        await query.edit_message_text(
+            "🕵️ <b>Welcome to Detective Ai!</b>\n\n"
+            "🔰 আপনার পছন্দের গ্রুপটি ক্লিক করে নির্বাচন করুন। এরপর 🔰পেমেন্ট করুন🔰 বাটনে ক্লিক করুন:",
+            reply_markup=build_product_keyboard(selected_keys),
+            parse_mode="HTML"
+        )
+    
     elif query.data == "checkout":
         cursor.execute("SELECT selected_product FROM users WHERE user_id = ?", (user_id,))
         row = cursor.fetchone()
