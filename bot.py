@@ -409,6 +409,38 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML"
     )
 
+async def pending_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        return
+
+    cursor.execute("""
+        SELECT p.trx_id, p.user_id, p.product_key, u.full_name, u.username 
+        FROM pending_users p 
+        LEFT JOIN users u ON p.user_id = u.user_id
+    """)
+    rows = cursor.fetchall()
+
+    if not rows:
+        await update.message.reply_text("✅ এই মুহূর্তে কোনো পেন্ডিং পেমেন্ট নেই!")
+        return
+
+    msg = "⏳ <b>পেন্ডিং পেমেন্টের বিস্তারিত তালিকা:</b>\n━━━━━━━━━━━━━━━━━━━━\n\n"
+    for idx, (trx_id, uid, cart_str, full_name, uname) in enumerate(rows, start=1):
+        keys, req_amount = get_cart_total(cart_str)
+        pkg_names = ", ".join([PRODUCTS[k]["name"] for k in keys]) if keys else cart_str
+        u_tag = f"@{uname}" if uname else "No Username"
+        name_display = full_name if full_name else "Unknown"
+
+        msg += (
+            f"<b>{idx}. {name_display}</b> ({u_tag})\n"
+            f"🆔 User ID: <code>{uid}</code>\n"
+            f"🧾 TrxID: <code>{trx_id}</code>\n"
+            f"📦 প্যাকেজ: {pkg_names} ({int(req_amount)} Tk)\n"
+            f"⚡ অ্যাপ্রুভ করতে: <code>/approve {uid} {cart_str}</code>\n\n"
+        )
+
+    await update.message.reply_text(msg, parse_mode="HTML")
+    
 
 async def check_user_status(message, user_id: int):
     cursor.execute("SELECT expiry_date FROM subscriptions WHERE user_id = ?", (user_id,))
