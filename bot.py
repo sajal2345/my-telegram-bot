@@ -469,27 +469,35 @@ async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await check_user_status(update.message, update.effective_user.id)
 
 async def refer_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    cursor.execute("SELECT ref_points FROM users WHERE user_id = ?", (user_id,))
-    row = cursor.fetchone()
-    pts = row[0] if row else 0
-    ref_link = f"https://t.me/{bot_username}?start=ref_{user_id}"
+    try:
+        user_id = update.effective_user.id
+        cursor.execute("SELECT ref_points FROM users WHERE user_id = ?", (user_id,))
+        row = cursor.fetchone()
+        pts = row[0] if row and row[0] is not None else 0
 
+        bot_username = context.bot.username
+        if not bot_username:
+            bot_info = await context.bot.get_me()
+            bot_username = bot_info.username
 
-    keyboard = []
-    if pts >= POINTS_FOR_FREE:
-        keyboard.append([InlineKeyboardButton("🎉 Claim 1 Free Group!", callback_data="claim_free_menu")])
-    keyboard.append([InlineKeyboardButton("🔙 Back to Products", callback_data="back_to_products")])
+        ref_link = f"https://t.me/{bot_username}?start=ref_{user_id}"
 
-    await update.message.reply_text(
-        f"🎁 <b>Refer & Earn Program</b>\n\n"
-        f"আপনার রেফারেল লিংকটি বন্ধুদের সাথে শেয়ার করুন। আপনার লিংক থেকে কেউ জয়েন করে পেমেন্ট করলেই আপনি পাবেন <b>১ পয়েন্ট</b>।\n\n"
-        f"🌟 মোট <b>{POINTS_FOR_FREE} পয়েন্ট</b> হলেই যেকোনো ১টি গ্রুপ পাবেন <b>সম্পূর্ণ ফ্রি!</b>\n\n"
-        f"📊 আপনার বর্তমান পয়েন্ট: <b>{pts} / {POINTS_FOR_FREE}</b>\n\n"
-        f"🔗 আপনার রেফারেল লিংক:\n<code>{ref_link}</code>",
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode="HTML"
-    )
+        keyboard = []
+        if pts >= POINTS_FOR_FREE:
+            keyboard.append([InlineKeyboardButton("🎉 Claim 1 Free Group!", callback_data="claim_free_menu")])
+        keyboard.append([InlineKeyboardButton("🔙 Back to Products", callback_data="back_to_products")])
+
+        await update.message.reply_text(
+            f"🎁 <b>Refer & Earn Program</b>\n\n"
+            f"আপনার রেফারেল লিংকটি বন্ধুদের সাথে শেয়ার করুন। আপনার লিংক থেকে কেউ জয়েন করে পেমেন্ট করলেই আপনি পাবেন <b>১ পয়েন্ট</b>।\n\n"
+            f"🌟 মোট <b>{POINTS_FOR_FREE} পয়েন্ট</b> হলেই যেকোনো ১টি গ্রুপ পাবেন <b>সম্পূর্ণ ফ্রি!</b>\n\n"
+            f"📊 আপনার বর্তমান পয়েন্ট: <b>{pts} / {POINTS_FOR_FREE}</b>\n\n"
+            f"🔗 আপনার রেফারেল লিংক:\n<code>{ref_link}</code>",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error: {e}")
     
 
 async def myid(update: Update, context: ContextTypes.DEFAULT_TYPE):
