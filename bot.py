@@ -23,7 +23,7 @@ PRODUCTS = {
     "p1": {"name": "BD Live/Call Record(নভেম্বর ২০২৬)", "channel_id": -1004459597302, "auto_link": True},
     "p2": {"name": "Tango Videos", "channel_id": -1002829173374, "auto_link": True},
     "p3": {"name": "Chamet Videos", "channel_id": -1002609377697, "auto_link": True},
-    "p4": {"name": "বাচ্চাদের ভিডিও/Cp Vides", "channel_id": None, "auto_link": False},
+    "p4": {"name": "Special VIP Videos", "channel_id": None, "auto_link": False},
 }
 
 conn = sqlite3.connect("payments.db", check_same_thread=False)
@@ -36,7 +36,7 @@ cursor.execute("CREATE TABLE IF NOT EXISTS subscriptions (user_id INTEGER PRIMAR
 cursor.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
 
 cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('amount_p1', '50.0')")
-cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('amount_group', '100.0')")
+cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('amount_group', '50.0')")
 cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('days', '500')")
 conn.commit()
 
@@ -69,7 +69,7 @@ def set_setting(key: str, value: str):
 def get_product_price(prod_key: str) -> float:
     if prod_key == "p1":
         return float(get_setting("amount_p1", "50.0"))
-    return float(get_setting("amount_group", "100.0"))
+    return float(get_setting("amount_group", "50.0"))
 
 
 def get_cart_total(cart_str: str):
@@ -79,8 +79,7 @@ def get_cart_total(cart_str: str):
     unique_keys = list(dict.fromkeys(keys))
     total = sum(get_product_price(k) for k in unique_keys)
     return unique_keys, total
-
-async def send_invite_to_customer(bot, customer_id: int, trx_id: str, paid_amount: float = 0.0, cart_str: str = "p1"):
+    async def send_invite_to_customer(bot, customer_id: int, trx_id: str, paid_amount: float = 0.0, cart_str: str = "p1"):
     try:
         keys, _ = get_cart_total(cart_str)
         if not keys:
@@ -140,6 +139,7 @@ async def send_invite_to_customer(bot, customer_id: int, trx_id: str, paid_amoun
             chat_id=ADMIN_ID,
             text=f"⚠️ Invite Link পাঠাতে সমস্যা হয়েছে (User: {customer_id}, TrxID: {trx_id}): {e}"
         )
+
 
 def build_product_keyboard(selected_keys: list) -> InlineKeyboardMarkup:
     p1_price = int(get_product_price("p1"))
@@ -229,7 +229,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="HTML"
         )
 
-
     elif query.data in ["pay_nagad", "pay_bkash"]:
         cursor.execute("SELECT selected_product FROM users WHERE user_id = ?", (user_id,))
         row = cursor.fetchone()
@@ -274,7 +273,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data == "status":
         await check_user_status(query.message, user_id)
-               
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if user:
@@ -286,8 +285,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🕵️ <b>Welcome to Detective Ai!</b>\n\n"
         "🔰 আপনার পছন্দের গ্রুপটি ক্লিক করে নির্বাচন করুন। এরপর 🔰পেমেন্ট করুন🔰 বাটনে ক্লিক করুন:",
         reply_markup=build_product_keyboard([]),
-        parse_mode="HTML" 
+        parse_mode="HTML"
     )
+
 
 async def check_user_status(message, user_id: int):
     cursor.execute("SELECT expiry_date FROM subscriptions WHERE user_id = ?", (user_id,))
@@ -339,7 +339,7 @@ async def setamount2(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
     if not context.args:
-        await update.message.reply_text("ব্যবহার করুন:\n/setamount2 100")
+        await update.message.reply_text("ব্যবহার করুন:\n/setamount2 50")
         return
     try:
         new_amt = float("".join(context.args[:1]))
@@ -348,7 +348,7 @@ async def setamount2(update: Update, context: ContextTypes.DEFAULT_TYPE):
         set_setting("amount_group", str(new_amt))
         await update.message.reply_text(f"✅ বাকি ৩টি প্রোডাক্টের দাম একসাথে {int(new_amt)} Tk সেট করা হয়েছে!")
     except ValueError:
-        await update.message.reply_text("❌ সঠিক সংখ্যা লিখুন। যেমন: /setamount2 100")
+        await update.message.reply_text("❌ সঠিক সংখ্যা লিখুন। যেমন: /setamount2 50")
 
 
 async def sendlink(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -483,9 +483,7 @@ async def handle_trx_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"⏳ আপনার TrxID ({trx_id}) জমা হয়েছে।\n"
             "Nagad থেকে কনফার্মেশন SMS পাওয়ার সাথে সাথেই ভেরিফাই হয়ে যাবে!"
         )
-
-
-async def payment_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        async def payment_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if user is None:
         return
@@ -614,6 +612,7 @@ async def verify_sms_endpoint(request):
 async def health_check(request):
     return web.Response(text="Bot & Subscription Server Running!")
 
+
 async def main():
     ptb_app = Application.builder().token(TOKEN).build()
 
@@ -631,6 +630,7 @@ async def main():
     ptb_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_trx_id))
     ptb_app.add_handler(MessageHandler(filters.VIDEO, get_video_id))
     ptb_app.add_handler(MessageHandler(filters.PHOTO | filters.Document.ALL, payment_screenshot))
+
     web_app = web.Application()
     web_app["ptb_app"] = ptb_app
     web_app.router.add_get("/", health_check)
