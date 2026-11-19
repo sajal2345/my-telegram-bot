@@ -277,7 +277,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(
         "🕵️ <b>Welcome to Detective Ai!</b>\n\n"
-        "🔰 যে গ্রুপ নিতে চান সেটায় ক্লিক করে নির্বাচন করুন। এরপর 🔰পেমেন্ট করুন🔰 বাটনে ক্লিক করুন:",
+        "🔰 আপনার পছন্দের গ্রুপটি ক্লিক করে নির্বাচন করুন। এরপর 🔰পেমেন্ট করুন🔰 বাটনে ক্লিক করুন:",
         reply_markup=build_product_keyboard([]),
         parse_mode="HTML" 
     )
