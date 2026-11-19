@@ -484,7 +484,8 @@ async def handle_trx_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"⏳ আপনার TrxID ({trx_id}) জমা হয়েছে।\n"
             "Nagad থেকে কনফার্মেশন SMS পাওয়ার সাথে সাথেই ভেরিফাই হয়ে যাবে!"
         )
-        async def payment_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+async def payment_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if user is None:
         return
